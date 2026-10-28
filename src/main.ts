@@ -221,7 +221,57 @@ function setMinimised(value: boolean): void {
   $("btn-menu").setAttribute("aria-expanded", String(!value));
   closeMenus();
   armAutoMinimise();
+  if (!value) showBar();
 }
+
+// On a wide screen the bar slides away a few seconds after you stop using it, so it never sits
+// over the grass, and comes back when the pointer goes near the bottom edge. It stays while you are
+// using it: hovering it, focus inside it, or a menu open. (A phone has the panel above instead.)
+const REVEAL_ZONE = 90; // px from the bottom edge that bring the bar back
+const HIDE_AT_START_MS = 4500;
+const HIDE_AFTER_LEAVING_MS = 1500;
+let hideTimer = 0;
+let nearBottom = false;
+
+const barBusy = (): boolean =>
+  nearBottom ||
+  $("bar").matches(":hover") ||
+  $("bar").contains(document.activeElement) ||
+  !!document.querySelector(".menu:not([hidden])");
+
+function showBar(): void {
+  document.body.classList.remove("bar-hidden");
+  armHideBar(HIDE_AFTER_LEAVING_MS);
+}
+
+function armHideBar(delay: number): void {
+  clearTimeout(hideTimer);
+  if (narrow() || minimised) return;
+  hideTimer = window.setTimeout(() => {
+    if (barBusy()) armHideBar(HIDE_AFTER_LEAVING_MS);
+    else document.body.classList.add("bar-hidden");
+  }, delay);
+}
+
+addEventListener(
+  "pointermove",
+  (e) => {
+    if (narrow()) return;
+    const near = e.clientY > innerHeight - REVEAL_ZONE;
+    if (near) showBar();
+    else if (nearBottom) armHideBar(HIDE_AFTER_LEAVING_MS); // just left the bottom edge
+    nearBottom = near;
+  },
+  { passive: true },
+);
+document.addEventListener("mouseleave", () => {
+  nearBottom = false;
+  armHideBar(HIDE_AFTER_LEAVING_MS);
+});
+matchMedia("(max-width: 720px)").addEventListener("change", () => {
+  document.body.classList.remove("bar-hidden"); // crossing between phone and desktop layouts starts fresh
+  armHideBar(HIDE_AT_START_MS);
+});
 
 // Ambient mode: fullscreen, and the controls fade away when nothing moves.
 let idleTimer = 0;
@@ -425,6 +475,7 @@ window.setInterval(() => {
 
 setMinimised(minimised);
 syncUi();
+armHideBar(HIDE_AT_START_MS);
 
 // The GitHub link shows how many stars the repository has. GitHub allows only 60 anonymous requests an
 // hour, so the count is kept for an hour; if it cannot be fetched the number is left out rather than guessed.

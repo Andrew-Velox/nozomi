@@ -221,6 +221,7 @@ kbd {
   bottom: 86px;
   transform: translateX(-50%);
   margin: 0;
+  width: max-content; /* a fixed box at left:50% would otherwise wrap at half the window */
   max-width: calc(100vw - 32px);
   font-size: 12px;
   letter-spacing: 0.04em;
@@ -292,6 +293,10 @@ body.controls-min .hint { display: none; }
 
 /* ambient mode: everything fades when nothing moves, and the cursor goes too */
 .brand, .bar, .fab, .hint, .gh { transition: opacity 0.4s ease; }
+.bar { transition: opacity 0.4s ease, translate 0.35s ease; }
+
+/* the bar tucked away below the screen edge until the pointer goes near it */
+body.bar-hidden .bar { opacity: 0; translate: 0 28px; pointer-events: none; }
 body.idle .brand,
 body.idle .gh,
 body.idle .bar,

@@ -130,6 +130,10 @@ weather, tree form and blossom colour, and switches for Detail, Wind, Rain and S
 the bar away into a three-line menu button in the bottom right corner; tap it to bring the bar back, or
 drag it anywhere you like (it remembers where).
 
+On a wide screen the bar also slides away a few seconds after you stop using it, so it never sits over
+the grass. Move the pointer to the bottom edge to bring it back; it stays while you are hovering it or
+a menu is open.
+
 On a phone the controls start minimised so they never cover the tree. Tap the menu button to open
 them as a panel across the bottom; it closes itself a few seconds after your last touch, and tapping
 the tree tucks it away too.
