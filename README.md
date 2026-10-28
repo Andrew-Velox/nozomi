@@ -1,5 +1,7 @@
 # Sakura 桜
 
+[![stars](https://img.shields.io/github/stars/Andrew-Velox/nozomi?label=stars&color=fb74b2&style=flat-square)](https://github.com/Andrew-Velox/nozomi/stargazers) [![size](https://img.shields.io/badge/JavaScript-17%20KB%20gzipped-fb74b2?style=flat-square)](#sakura-%E6%A1%9C) [![dependencies](https://img.shields.io/badge/runtime%20dependencies-0-fb74b2?style=flat-square)](package.json)
+
 A calm, procedurally grown cherry blossom tree. Petals fall from the crown, drift on a wandering
 wind, settle in the grass and fade. The tree is different every time you regrow it.
 
