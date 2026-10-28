@@ -34,6 +34,8 @@ Plain TypeScript and Canvas 2D, **no runtime dependencies**. The JavaScript is a
 - **Synthesised sound** (wind, rain and a soft chime on click). No audio files, and nothing loads
   until you switch it on.
 - **Works on a phone.** The controls collapse into a round menu button and open as a bottom panel.
+- **A pointer that matches.** The cursor over the scene is a small arrowhead in the colour of the
+  blossom you picked.
 - Settings are remembered. It respects `prefers-reduced-motion`.
 
 ## Run it

@@ -1,6 +1,7 @@
 import "./style.css";
 import { Audio } from "./audio";
 import { css, hex, mix, type Rgb } from "./color";
+import { cursorFor } from "./cursor";
 import { Grid } from "./grid";
 import { icon, WEATHER_ICON } from "./icons";
 import { PALETTE_NAMES, makeRamp } from "./palettes";
@@ -226,6 +227,7 @@ function syncUi(): void {
   $("style-label").textContent = cap(opts.style);
   $("palette-label").textContent = cap(opts.palette);
   $("swatch").style.background = css(ramp[3]);
+  canvas.style.cursor = cursorFor(ramp); // the pointer takes the blossom colour
   $("weather-label").textContent = cap(opts.weather);
   $("weather-icon").innerHTML = icon(WEATHER_ICON[opts.weather]);
   setSwitch("sw-detail", opts.detail);
