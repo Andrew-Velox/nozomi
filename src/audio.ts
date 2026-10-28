@@ -5,7 +5,6 @@ export class Audio {
   private filter: BiquadFilterNode | null = null;
   private gain: GainNode | null = null;
   private rainGain: GainNode | null = null;
-  private noise: AudioBuffer | null = null;
   private level = 0;
   enabled = false;
 
@@ -27,26 +26,6 @@ export class Audio {
   setRain(level: number): void {
     if (!this.ctx || !this.rainGain) return;
     this.rainGain.gain.setTargetAtTime(level * 0.05 * this.level, this.ctx.currentTime, 0.6);
-  }
-
-  /** A low rumble that rolls in and fades out over a few seconds. */
-  thunder(strength: number): void {
-    if (!this.ctx || !this.enabled || !this.noise) return;
-    const now = this.ctx.currentTime;
-    const src = this.ctx.createBufferSource();
-    src.buffer = this.noise;
-    src.loop = true;
-    const low = this.ctx.createBiquadFilter();
-    low.type = "lowpass";
-    low.frequency.setValueAtTime(320, now);
-    low.frequency.exponentialRampToValueAtTime(70, now + 3);
-    const env = this.ctx.createGain();
-    env.gain.setValueAtTime(0.0001, now);
-    env.gain.exponentialRampToValueAtTime(0.35 * strength, now + 0.25);
-    env.gain.exponentialRampToValueAtTime(0.0001, now + 3.4);
-    src.connect(low).connect(env).connect(this.ctx.destination);
-    src.start(now);
-    src.stop(now + 3.5);
   }
 
   /** A soft wind-chime note, played when the tree is touched. */
@@ -93,7 +72,6 @@ export class Audio {
       this.gain.gain.value = 0;
       source.connect(this.filter).connect(this.gain).connect(this.ctx.destination);
       source.start();
-      this.noise = buffer;
 
       // rain: white noise with the lows and the very highs taken off
       const white = this.ctx.createBuffer(1, length, this.ctx.sampleRate);

@@ -4,7 +4,6 @@ import { css, hex, mix, type Rgb } from "./color";
 import { Grid } from "./grid";
 import { PALETTE_NAMES, makeRamp } from "./palettes";
 import { Petals, type PetalWorld } from "./petals";
-import { Lightning } from "./lightning";
 import { Rain } from "./rain";
 import { drawGrid } from "./render";
 import { mulberry32 } from "./rng";
@@ -30,14 +29,13 @@ interface Options {
   wind: number; // 0..10
   windOn: boolean;
   weather: Weather;
-  lightning: boolean;
 }
 
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const clamp = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
 
 function loadOptions(): Options {
-  const fallback: Options = { palette: "sakura", style: "yoshino", detail: false, density: reducedMotion ? 2 : 5, wind: 3, windOn: true, weather: "clear", lightning: false };
+  const fallback: Options = { palette: "sakura", style: "yoshino", detail: false, density: reducedMotion ? 2 : 5, wind: 3, windOn: true, weather: "clear" };
   try {
     const o = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
     return {
@@ -48,7 +46,6 @@ function loadOptions(): Options {
       wind: clamp(Number.isFinite(Number(o.wind)) ? Number(o.wind) : fallback.wind, 0, 10),
       windOn: o.windOn !== false,
       weather: WEATHERS.includes(o.weather) ? o.weather : fallback.weather,
-      lightning: o.lightning === true,
     };
   } catch {
     return fallback; // storage can be blocked
@@ -84,9 +81,6 @@ const petals = new Petals(world, wind);
 const weatherFx = new WeatherFx();
 weatherFx.set(opts.weather);
 const rain = new Rain();
-const lightning = new Lightning();
-lightning.enabled = opts.lightning;
-lightning.soft = reducedMotion;
 const leaves = new SwayLayer(); // blossom clusters
 const curtain = new SwayLayer(); // weeping strands
 
@@ -219,13 +213,11 @@ const labels = {
   sound: document.getElementById("sound-label")!,
   wind: document.getElementById("wind-label")!,
   weather: document.getElementById("weather-label")!,
-  lightning: document.getElementById("lightning-label")!,
 };
 const swatch = document.getElementById("swatch")!;
 const detailButton = document.getElementById("btn-detail")!;
 const soundButton = document.getElementById("btn-sound")!;
 const windButton = document.getElementById("btn-wind")!;
-const lightningButton = document.getElementById("btn-lightning")!;
 
 function syncUi(): void {
   labels.style.textContent = opts.style;
@@ -235,8 +227,6 @@ function syncUi(): void {
   labels.wind.textContent = opts.windOn ? "on" : "off";
   windButton.setAttribute("aria-pressed", String(opts.windOn));
   labels.weather.textContent = opts.weather;
-  labels.lightning.textContent = opts.lightning ? "on" : "off";
-  lightningButton.setAttribute("aria-pressed", String(opts.lightning));
   swatch.style.background = css(ramp[3]);
 }
 
@@ -279,15 +269,6 @@ function cycleWeather(step: number): void {
   say(opts.weather);
 }
 
-function toggleLightning(): void {
-  opts.lightning = !opts.lightning;
-  lightning.enabled = opts.lightning;
-  if (opts.lightning) lightning.arm();
-  save();
-  syncUi();
-  say(opts.lightning ? "lightning on" : "lightning off");
-}
-
 function toggleSound(): void {
   const on = audio.toggle();
   labels.sound.textContent = on ? "on" : "off";
@@ -328,7 +309,6 @@ detailButton.addEventListener("click", toggleDetail);
 soundButton.addEventListener("click", toggleSound);
 windButton.addEventListener("click", toggleWind);
 document.getElementById("btn-weather")!.addEventListener("click", () => cycleWeather(1));
-lightningButton.addEventListener("click", toggleLightning);
 document.getElementById("btn-hide")!.addEventListener("click", () => document.body.classList.toggle("ui-hidden"));
 
 addEventListener("keydown", (e) => {
@@ -348,7 +328,6 @@ addEventListener("keydown", (e) => {
     case "a": case "A": toggleWind(); break;
     case "e": cycleWeather(1); break;
     case "E": cycleWeather(-1); break;
-    case "l": case "L": toggleLightning(); break;
     case "w": changeWind(1); break;
     case "W": changeWind(-1); break;
     case "m": case "M": toggleSound(); break;
@@ -401,13 +380,6 @@ addEventListener("resize", () => {
   resizeTimer = window.setTimeout(layout, 150);
 });
 
-// When the thunder arrives it rattles the tree: a hard gust and a shower of blossom.
-lightning.onThunder = (strength) => {
-  audio.thunder(strength);
-  wind.trigger(90 + 60 * strength);
-  petals.shed(world.w / 2, world.h / 2, 9999, Math.round(20 + 30 * strength));
-};
-
 // --- frame loop ------------------------------------------------------------
 
 const FRAME = 1 / 62;
@@ -429,7 +401,6 @@ function frame(now: number): void {
   wind.update(dt);
   petals.update(dt);
   rain.update(dt, look.rain, world.w, world.groundY, world.scale, wind);
-  lightning.update(dt, clamp(look.rain * 0.8 + look.cloud * 0.5, 0, 1), world);
   audio.setWind(wind.strength);
   audio.setRain(look.rain);
 
@@ -445,7 +416,6 @@ function frame(now: number): void {
   curtain.draw(ctx, now / 1000, wind);
   petals.draw(ctx);
   rain.draw(ctx, wind, look.rain);
-  lightning.draw(ctx, w, h, world);
 }
 
 syncUi();

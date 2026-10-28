@@ -25,8 +25,7 @@ npm run build    # type-check + production build into dist/
 | `w` / `W` | more / less wind |
 | `a` | wind on / off (off: no wind, strands hang still, petals fall straight) |
 | `e` / `E` | next / previous weather: clear, sunset, moonlight, overcast, mist, rain |
-| `l` | lightning on / off: flashes, a jagged bolt and delayed thunder that shakes blossom loose |
-| `m` | synthesised sound: wind, rain and thunder, plus a chime on click |
+| `m` | synthesised sound: wind and rain, plus a chime on click |
 | `h` | hide the interface |
 
 Settings persist between visits.
@@ -44,9 +43,6 @@ Settings persist between visits.
 - `weather.ts` – each weather is a "look" (tint, sky veil, light, clouds, fog, rain, wind and petal-fall
   multipliers) drawn as overlays on the sky behind the tree (the tree, grass and petals are drawn on top, so they
   stay clear in every weather); changing weather eases every number, so nothing is regrown. `rain.ts` adds streaks that lean with the wind and splash in the grass.
-- `lightning.ts` – strikes at random while on (more often in a stormy sky): a flash with flicker, a
-  forked bolt snapped to the pixel grid, then thunder a moment later that gusts the wind and
-  shakes blossom loose. Reduced-motion users get a single softer flash and no bolt.
 - `petals.ts` / `wind.ts` – petals fall from blossom cells with sway and tumble, catch a wandering
   wind plus gusts, lie on the ground for a few seconds and fade.
 - `grid.ts` / `render.ts` – the tree is a grid of cells painted as solid blocks and tiny glyphs.
