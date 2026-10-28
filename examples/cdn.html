@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>sakura-tree: from a script tag</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1a1322; }
+  sakura-tree { height: 100%; }
+</style>
+
+<sakura-tree palette="sakura" detail petals="6"></sakura-tree>
+
+<!-- No build step: this one file registers <sakura-tree> and sets window.Sakura.
+     From a CDN it would be https://unpkg.com/sakura-tree -->
+<script src="../lib/sakura-tree.iife.js"></script>
+<script>
+  console.log("Sakura API:", Object.keys(window.Sakura).join(", "));
+</script>

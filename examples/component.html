@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>sakura-tree: as a web component</title>
+<style>
+  body { margin: 0; background: #1b1523; color: #f5e9f0; font: 16px system-ui, sans-serif; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
+  sakura-tree { height: 380px; border-radius: 12px; }
+  .bar { padding: 0 12px 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  button { font: inherit; padding: 8px 14px; border-radius: 999px; border: 0; background: #f0a3c0; cursor: pointer; }
+</style>
+
+<div class="row">
+  <sakura-tree id="a" palette="peach" form="bush" weather="sunset"></sakura-tree>
+  <sakura-tree id="b" palette="mint" form="shidare" weather="mist" rain detail seed="7"></sakura-tree>
+</div>
+<div class="bar">
+  <button id="gust">Gust</button>
+  <button id="rain">Toggle rain on the left</button>
+  <button id="palette">Next colour on the right</button>
+</div>
+
+<!-- Importing this file registers <sakura-tree>. -->
+<script type="module" src="../lib/element.js"></script>
+<script type="module">
+  const colours = ["mint", "sky", "lavender", "gold", "rose"];
+  let i = 0;
+  document.getElementById("gust").onclick = () => document.querySelectorAll("sakura-tree").forEach((el) => el.instance?.gust());
+  document.getElementById("rain").onclick = () => document.getElementById("a").toggleAttribute("rain");
+  document.getElementById("palette").onclick = () => document.getElementById("b").setAttribute("palette", colours[i++ % colours.length]);
+</script>

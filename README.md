@@ -3,8 +3,10 @@
 A calm, procedurally grown cherry blossom tree. Petals fall from the crown, drift on a wandering
 wind, settle in the grass and fade. The tree is different every time you regrow it.
 
-Plain TypeScript and Canvas 2D, **no runtime dependencies**. The JavaScript is about 17 KB gzipped
-(15 KB with brotli), and the whole page, HTML and CSS included, is about 20 KB.
+It is both an app you can open and a small package you can put on your own site (`npm i sakura-tree`).
+
+Plain TypeScript and Canvas 2D, **no runtime dependencies**. The whole app is about 23 KB gzipped
+(19 KB of it JavaScript), and the package on its own, without the control bar, is about 16 KB gzipped.
 
 <p align="center">
   <img src="docs/demo.webp" alt="A 33 second tour of Sakura: a cherry blossom tree with wind, clicks, three kinds of cherry, blossom colours, weather, rain and cell mode" width="100%">
@@ -35,6 +37,80 @@ Plain TypeScript and Canvas 2D, **no runtime dependencies**. The JavaScript is a
   blossom you picked.
 - Settings are remembered. It respects `prefers-reduced-motion`.
 
+## Use it on your website
+
+```bash
+npm i sakura-tree
+```
+
+**In any element:**
+
+```js
+import { createSakura } from "sakura-tree";
+
+const sakura = createSakura("#hero", { palette: "lavender", form: "shidare", weather: "moonlight" });
+```
+
+**As a page background** (only the tree, petals and rain are drawn, so your page shows through, and
+clicks still reach your page):
+
+```js
+createSakura(document.body, { background: "transparent", interactive: false });
+```
+
+**As a web component:**
+
+```html
+<script type="module">import "sakura-tree/element";</script>
+
+<sakura-tree palette="peach" form="bush" weather="sunset" rain style="height: 420px"></sakura-tree>
+```
+
+**From a script tag, with no build step:**
+
+```html
+<script src="https://unpkg.com/sakura-tree"></script>
+<sakura-tree palette="sakura" detail></sakura-tree>
+```
+
+Change anything later with `sakura.set({ palette: "mint", rain: true })`, or by changing the
+attributes of the element. When you are done, `sakura.destroy()` removes it.
+
+### Options
+
+Every option is optional.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `palette` | `"sakura"` | Blossom colour: `sakura` `blush` `rose` `peach` `coral` `gold` `lavender` `violet` `sky` `mint` `matcha` `white`. |
+| `form` | `"yoshino"` | Kind of cherry: `yoshino`, `bush`, `shidare` (weeping) or `random`. Changing it grows a new tree. |
+| `detail` | `false` | `true` for the finely branched pixel tree, `false` for the blocky cell style. |
+| `petals` | `5` | How many petals, 1 to 10. |
+| `wind` | `3` | Wind strength, 0 to 10, or `false` for still air. |
+| `weather` | `"clear"` | `clear`, `sunset`, `moonlight`, `overcast` or `mist`. |
+| `rain` | `false` | Rain falling through the weather. |
+| `background` | `"sky"` | `"sky"` draws its own night sky; `"transparent"` draws only the tree, petals and rain. |
+| `fps` | `60` | Draw at most this many frames per second (5 to 60). |
+| `seed` | random | The same seed grows the same tree. |
+| `sound` | `false` | Wind and rain sound, and a chime on click. Browsers only allow it after a click or key press. |
+| `interactive` | `true` | Clicking or dragging shakes the blossom. Turn it off to let clicks through to your page. |
+| `cursor` | `true` | The arrowhead cursor in the blossom colour over the scene. |
+
+When you create a scene you can also pass `fixed` (fill the whole window; the default when the
+container is `document.body`), `zIndex`, `touchAction` (default `"pan-y"`, so a finger can still
+scroll the page) and `respectReducedMotion` (default `true`).
+
+### Methods
+
+`set(options)` · `regrow(seed?)` · `gust(strength?)` · `pause()` · `resume()` ·
+`screenshot()` (a PNG blob) · `destroy()` · and the read-only `options`, `fps`, `canvas` and `container`.
+
+The scene stops drawing while it is scrolled out of view or the tab is hidden, follows the size of
+its container, and uses fewer petals and calmer wind for people who prefer reduced motion. It needs a
+browser, so create it on the client (in a framework, inside an effect or `onMount`). The package is
+plain ES modules with TypeScript types, and `examples/` has a page for each way of using it
+(`npm run build:lib` first).
+
 ## Run it
 
 ```bash
@@ -42,6 +118,7 @@ npm install
 npm run dev       # http://localhost:5173
 npm run build     # type-check and build the site into dist/
 npm run preview   # serve the built site locally
+npm run build:lib # build the npm package into lib/
 ```
 
 Node 20 or newer is recommended.
@@ -100,7 +177,9 @@ Everything is rule-based; nothing is a recorded animation.
 | `src/sway.ts` | The moving parts of the tree live on their own layers: the blossom clusters (random local ripples) and the hanging strands (a wave that travels down each one). Each frame a layer is drawn a band of rows at a time, every column shifted sideways by its own amount. |
 | `src/weather.ts`, `src/rain.ts` | Each weather is a "look" (tint, sky veil, light, clouds, fog, rain, wind and petal-fall multipliers) drawn as overlays on the sky behind the tree. Changing weather eases every number, so nothing is regrown. Rain streaks lean with the wind and splash in the grass. |
 | `src/audio.ts` | Wind, rain and chimes, all synthesised with the Web Audio API. |
-| `src/main.ts` | Wiring: layout, the control bar, ambient mode, the frame loop. |
+| `src/sakura.ts` | The engine. One `Sakura` class owns the canvas, the layout, the frame loop and the click handling, and nothing is global, so any number of scenes can share a page. It is what `createSakura()` returns, and the app below is built on it. |
+| `src/index.ts`, `src/element.ts`, `src/cdn.ts` | The package: the API, the `<sakura-tree>` web component, and the one-file script-tag build. |
+| `src/main.ts` | The app: the control bar, ambient mode, the keyboard and saved settings, all driving a scene through the same public API. |
 
 ## Credits
 
@@ -113,5 +192,4 @@ Everything is rule-based; nothing is a recorded animation.
 
 ## License
 
-No licence has been chosen for this project yet, so all rights are reserved for now.
-Third-party notices are in [NOTICE.md](NOTICE.md).
+[MIT](LICENSE). Third-party notices are in [NOTICE.md](NOTICE.md).

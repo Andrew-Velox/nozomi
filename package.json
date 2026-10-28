@@ -1,12 +1,71 @@
 {
-  "name": "sakura",
-  "private": true,
+  "name": "sakura-tree",
   "version": "0.1.0",
+  "description": "A procedurally grown cherry blossom tree for your page: falling petals, wind, weather and rain. Plain TypeScript and Canvas, about 16 KB gzipped, no dependencies.",
+  "keywords": [
+    "sakura",
+    "cherry-blossom",
+    "cherry-blossoms",
+    "petals",
+    "canvas",
+    "animation",
+    "generative-art",
+    "procedural",
+    "pixel-art",
+    "background",
+    "wallpaper",
+    "web-component",
+    "custom-element",
+    "weather",
+    "rain",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Andrew-Velox",
+  "homepage": "https://github.com/Andrew-Velox/nozomi#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Andrew-Velox/nozomi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Andrew-Velox/nozomi/issues"
+  },
   "type": "module",
+  "main": "./lib/index.js",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "unpkg": "./lib/sakura-tree.iife.js",
+  "jsdelivr": "./lib/sakura-tree.iife.js",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js",
+      "default": "./lib/index.js"
+    },
+    "./element": {
+      "types": "./lib/element.d.ts",
+      "import": "./lib/element.js",
+      "default": "./lib/element.js"
+    },
+    "./iife": "./lib/sakura-tree.iife.js",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "./lib/element.js",
+    "./lib/sakura-tree.iife.js"
+  ],
+  "files": [
+    "lib",
+    "README.md",
+    "LICENSE",
+    "NOTICE.md"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:lib": "node -e \"require('fs').rmSync('lib',{recursive:true,force:true})\" && vite build -c vite.lib.config.ts && vite build -c vite.cdn.config.ts && tsc -p tsconfig.lib.json",
+    "prepublishOnly": "npm run build:lib"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
