@@ -14,6 +14,7 @@ html, body {
   margin: 0;
   height: 100%;
   overflow: hidden;
+  visibility: visible; /* index.html hides the body until this stylesheet has loaded */
   background: #1a1322;
   color: var(--ink);
   -webkit-tap-highlight-color: transparent;
