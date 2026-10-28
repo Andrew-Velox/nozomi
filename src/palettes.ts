@@ -1,7 +1,7 @@
 import { hex, mix, type Rgb } from "./color";
 
 // light, mid and deep anchors; the eight-step ramp is interpolated from them.
-const ANCHORS: Record<string, [string, string, string]> = {
+const ANCHORS = {
   sakura: ["#ffe6f2", "#fb74b2", "#8f2a5a"],
   blush: ["#fff0f3", "#f08ea6", "#8c3a52"],
   rose: ["#ffd9e2", "#f2587e", "#7a1f3a"],
@@ -14,13 +14,15 @@ const ANCHORS: Record<string, [string, string, string]> = {
   mint: ["#e2fff0", "#4cc796", "#1a6a48"],
   matcha: ["#eaf6d4", "#86b848", "#35591a"],
   white: ["#ffffff", "#f3b6cd", "#a04b6c"],
-};
+} satisfies Record<string, [string, string, string]>;
 
-export const PALETTE_NAMES = Object.keys(ANCHORS);
+export type PaletteName = keyof typeof ANCHORS;
+export const PALETTE_NAMES = Object.keys(ANCHORS) as PaletteName[];
 
 /** Eight tones, 0 lightest to 7 deepest. */
 export function makeRamp(name: string): Rgb[] {
-  const [light, mid, deep] = (ANCHORS[name] ?? ANCHORS.sakura).map(hex);
+  const anchors = (ANCHORS as Record<string, [string, string, string]>)[name] ?? ANCHORS.sakura;
+  const [light, mid, deep] = anchors.map(hex);
   return Array.from({ length: 8 }, (_, i) => {
     const t = i / 7;
     return t < 0.5 ? mix(light, mid, t / 0.5) : mix(mid, deep, (t - 0.5) / 0.5);

@@ -9,10 +9,27 @@ export class Audio {
   enabled = false;
 
   toggle(): boolean {
-    this.enabled = !this.enabled;
-    if (this.enabled) this.start();
-    this.ramp(this.enabled ? 1 : 0);
-    return this.enabled;
+    return this.set(!this.enabled);
+  }
+
+  /** Switch the sound on or off. Browsers only let it start after a click or key press. */
+  set(on: boolean): boolean {
+    this.enabled = on;
+    if (on) this.start();
+    this.ramp(on ? 1 : 0);
+    return on;
+  }
+
+  /** Try again to start the audio engine after a user gesture, if sound was asked for earlier. */
+  resume(): void {
+    if (this.enabled && this.ctx?.state === "suspended") void this.ctx.resume();
+  }
+
+  /** Stop everything and release the audio engine. */
+  destroy(): void {
+    this.enabled = false;
+    void this.ctx?.close();
+    this.ctx = this.filter = this.gain = this.rainGain = null;
   }
 
   setWind(strength: number): void {

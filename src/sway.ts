@@ -119,6 +119,14 @@ export class SwayLayer {
     this.offsets = new Int16Array(this.x1 - this.x0 + 2);
   }
 
+  /** Release the bitmap; the layer draws nothing afterwards until it is built again. */
+  dispose(): void {
+    this.bitmap?.close();
+    this.bitmap = null;
+    this.ready = false;
+    this.buildId++;
+  }
+
   /** Is this screen point on this layer? */
   hit(x: number, y: number): boolean {
     if (!this.ready) return false;
