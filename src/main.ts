@@ -425,3 +425,46 @@ window.setInterval(() => {
 
 setMinimised(minimised);
 syncUi();
+
+// The GitHub link shows how many stars the repository has. GitHub allows only 60 anonymous requests an
+// hour, so the count is kept for an hour; if it cannot be fetched the number is left out rather than guessed.
+const REPO = "Andrew-Velox/nozomi";
+const STARS_KEY = "sakura:stars";
+const STARS_FRESH_MS = 60 * 60 * 1000;
+
+function formatStars(n: number): string {
+  if (n < 1000) return String(n);
+  return `${(n / 1000).toFixed(n < 10000 ? 1 : 0).replace(/\.0$/, "")}k`;
+}
+
+function showStars(n: number): void {
+  $("gh-count").textContent = formatStars(n);
+  $("gh-stars").hidden = false;
+  $("gh-link").setAttribute("aria-label", `View the source on GitHub, ${n} ${n === 1 ? "star" : "stars"}`);
+}
+
+async function loadStars(): Promise<void> {
+  let cached: { n: number; t: number } | null = null;
+  try {
+    cached = JSON.parse(localStorage.getItem(STARS_KEY) ?? "null");
+  } catch {
+    // storage can be blocked
+  }
+  if (cached && Number.isFinite(cached.n)) showStars(cached.n);
+  if (cached && Date.now() - cached.t < STARS_FRESH_MS) return;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO}`, { headers: { Accept: "application/vnd.github+json" } });
+    if (!res.ok) return; // rate limited or not found: keep whatever is showing
+    const n = (await res.json()).stargazers_count;
+    if (typeof n !== "number") return;
+    showStars(n);
+    try {
+      localStorage.setItem(STARS_KEY, JSON.stringify({ n, t: Date.now() }));
+    } catch {
+      // ignore
+    }
+  } catch {
+    // offline: keep whatever is showing
+  }
+}
+void loadStars();

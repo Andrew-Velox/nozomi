@@ -40,26 +40,40 @@ html, body {
 }
 .brand .kanji { font-size: 17px; letter-spacing: 0; margin-right: 8px; color: #ffc2d4; }
 
-/* link to the source, top right */
+/* link to the source, top right: the GitHub mark, and the star count once it is known */
 .gh {
   position: fixed;
   top: 14px;
   right: 14px;
-  width: 40px;
   height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
   color: var(--ink);
   background: var(--bar);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
   transition: background 0.15s, opacity 0.4s ease;
 }
-.gh svg { width: 20px; height: 20px; }
+.gh svg { width: 20px; height: 20px; flex: none; }
 .gh:hover { background: rgba(32, 36, 40, 0.92); }
 .gh:focus-visible { outline: 2px solid #ffc2d4; outline-offset: 2px; }
+.gh-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 3px 0 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  font-variant-numeric: tabular-nums;
+}
+.gh-stars[hidden] { display: none; }
+.gh-stars svg { width: 14px; height: 14px; color: #f4c95d; }
 
 /* ---- the control bar ---------------------------------------------------- */
 
@@ -247,21 +261,27 @@ kbd {
   bottom: 16px;
   width: 48px;
   height: 48px;
+  padding: 0;
   display: none;
   place-items: center;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: var(--bar);
+  border: 0;
+  border-radius: 12px; /* only the keyboard focus ring uses it: there is no visible background */
+  background: transparent;
   color: var(--ink);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   cursor: grab;
   touch-action: none; /* dragging it must not scroll or zoom the page */
 }
-.fab.dragging { cursor: grabbing; scale: 1.08; box-shadow: 0 14px 44px rgba(0, 0, 0, 0.6); }
-.fab .ic { width: 20px; height: 20px; }
-.fab:hover { background: rgba(32, 36, 40, 0.92); }
+.fab .ic {
+  width: 32px;
+  height: 32px;
+  stroke-width: 2.7;
+  /* a dark edge instead of a backing circle, so the lines read over grass as well as sky */
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.95)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+  transition: transform 0.15s;
+}
+.fab:hover .ic { transform: scale(1.1); }
+.fab.dragging { cursor: grabbing; }
+.fab.dragging .ic { transform: scale(1.2); }
 .fab:focus-visible { outline: 2px solid #ffc2d4; outline-offset: 2px; }
 body.controls-min .bar { display: none; }
 body.controls-min .fab { display: grid; }
