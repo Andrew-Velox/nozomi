@@ -33,8 +33,8 @@
         <div class="menu" hidden></div>
       </div>
 
-      <button class="btn" id="btn-hide" type="button" title="Hide interface (H)">
-        <span data-icon="eyeoff"></span><span class="lbl">Hide UI</span><kbd>H</kbd>
+      <button class="btn" id="btn-collapse" type="button" title="Minimise the controls">
+        <span data-icon="chevrondown"></span><span class="lbl">Minimise</span>
       </button>
 
       <span class="sep"></span>
@@ -44,12 +44,6 @@
       </button>
 
       <span class="sep"></span>
-
-      <div class="stepper" title="Petals ( p / P )">
-        <button id="petal-minus" type="button" aria-label="Fewer petals"><span data-icon="minus"></span></button>
-        <span id="petal-count">5</span>
-        <button id="petal-plus" type="button" aria-label="More petals"><span data-icon="plus"></span></button>
-      </div>
 
       <div class="menu-wrap">
         <button class="btn" id="btn-weather" type="button" title="Weather (E)" aria-haspopup="true" aria-expanded="false">
@@ -87,6 +81,10 @@
         <span data-icon="volume"></span><span class="lbl">Sound</span><span class="track"><span class="knob"></span></span>
       </button>
     </div>
+
+    <button class="fab" id="btn-menu" type="button" title="Show the controls" aria-label="Show the controls" aria-expanded="false">
+      <span data-icon="menu"></span>
+    </button>
 
     <div class="toast" id="toast" role="status"></div>
 

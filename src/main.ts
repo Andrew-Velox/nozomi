@@ -229,7 +229,6 @@ function syncUi(): void {
   $("weather-label").textContent = cap(opts.weather);
   $("weather-icon").innerHTML = icon(WEATHER_ICON[opts.weather]);
   $("fps-label").textContent = `${opts.fps} fps`;
-  $("petal-count").textContent = String(opts.density);
   setSwitch("sw-detail", opts.detail);
   setSwitch("sw-wind", opts.windOn);
   setSwitch("sw-rain", opts.rain);
@@ -307,7 +306,7 @@ function changeDensity(delta: number): void {
   opts.density = clamp(opts.density + delta, 1, 10);
   setPetalCount(innerWidth);
   save();
-  syncUi();
+  say(`Petals ${opts.density}`);
 }
 
 function toggleWind(): void {
@@ -331,9 +330,30 @@ const gust = (): void => {
   dismissHint();
 };
 
-function toggleUi(): void {
-  const hidden = document.body.classList.toggle("ui-hidden");
-  if (hidden) say("Press H to bring the controls back");
+// The controls minimise into a round button (a bar across the bottom would cover the tree on a
+// phone). They start minimised on a narrow screen and open on a wide one.
+const narrow = (): boolean => matchMedia("(max-width: 720px)").matches;
+let minimised = narrow();
+
+// On a phone the open panel tucks itself away again a few seconds after the last touch, and
+// stays while a dropdown is open.
+const AUTO_MINIMISE_MS = 6000;
+let autoTimer = 0;
+function armAutoMinimise(): void {
+  clearTimeout(autoTimer);
+  if (minimised || !narrow()) return;
+  autoTimer = window.setTimeout(() => {
+    if (document.querySelector(".menu:not([hidden])")) armAutoMinimise();
+    else setMinimised(true);
+  }, AUTO_MINIMISE_MS);
+}
+
+function setMinimised(value: boolean): void {
+  minimised = value;
+  document.body.classList.toggle("controls-min", value);
+  $("btn-menu").setAttribute("aria-expanded", String(!value));
+  closeMenus();
+  armAutoMinimise();
 }
 
 // Ambient mode: fullscreen, and the controls fade away when nothing moves.
@@ -417,10 +437,10 @@ attachMenu("btn-palette", () =>
 document.addEventListener("click", closeMenus);
 
 $("btn-ambient").addEventListener("click", () => setAmbient(!ambient));
-$("btn-hide").addEventListener("click", toggleUi);
+$("bar").addEventListener("pointerdown", armAutoMinimise);
+$("btn-collapse").addEventListener("click", () => setMinimised(true));
+$("btn-menu").addEventListener("click", () => setMinimised(false));
 $("btn-gust").addEventListener("click", gust);
-$("petal-minus").addEventListener("click", () => changeDensity(-1));
-$("petal-plus").addEventListener("click", () => changeDensity(1));
 $("sw-detail").addEventListener("click", toggleDetail);
 $("sw-wind").addEventListener("click", toggleWind);
 $("sw-rain").addEventListener("click", toggleRain);
@@ -435,7 +455,6 @@ addEventListener("keydown", (e) => {
       break;
     case "Escape": closeMenus(); break;
     case "f": case "F": setAmbient(!ambient); break;
-    case "h": case "H": toggleUi(); break;
     case "r": case "R": regrow(); break;
     case "c": cyclePalette(1); break;
     case "C": cyclePalette(-1); break;
@@ -462,6 +481,7 @@ const clock = (): number => performance.now() / 1000;
 canvas.addEventListener("pointerdown", (e) => {
   canvas.setPointerCapture(e.pointerId);
   pointer = [e.clientX, e.clientY];
+  if (narrow() && !minimised) setMinimised(true); // tapping the tree tucks the panel away on a phone
   if (curtain.hit(e.clientX, e.clientY)) curtain.poke(e.clientX, e.clientY);
   if (leaves.hit(e.clientX, e.clientY)) leaves.poke(e.clientX, e.clientY, 1.6, CLICK_RADIUS);
   petals.shed(e.clientX, e.clientY, 140, 36);
@@ -535,6 +555,7 @@ function frame(now: number): void {
   rain.draw(ctx, wind, look.rain);
 }
 
+setMinimised(minimised);
 syncUi();
 layout();
 requestAnimationFrame(frame);

@@ -92,7 +92,7 @@ html, body {
   gap: 8px;
   transition: background 0.15s, transform 0.12s;
 }
-.btn:hover, .item:hover, .stepper button:hover { background: var(--hover); }
+.btn:hover, .item:hover { background: var(--hover); }
 .btn:active, .item:active { transform: scale(0.97); }
 .btn.accent { background: rgba(255, 255, 255, 0.1); }
 .btn.accent:hover { background: rgba(255, 255, 255, 0.16); }
@@ -128,17 +128,6 @@ kbd {
   background: #fb74b2;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3);
 }
-
-/* petal counter */
-.stepper { display: inline-flex; align-items: center; margin: 0 4px; }
-.stepper button {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: inline-grid;
-  place-items: center;
-}
-.stepper span:not([data-icon]) { min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 /* on / off switches */
 .track {
@@ -232,16 +221,43 @@ kbd {
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-/* ---- hiding ------------------------------------------------------------------- */
+/* ---- minimised controls ------------------------------------------------------- */
 
-.brand, .bar, .hint { transition: opacity 0.4s ease; }
-body.ui-hidden .brand,
-body.ui-hidden .bar,
-body.ui-hidden .hint,
+/* the round button that brings the controls back */
+.fab {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  translate: -50% 0;
+  width: 48px;
+  height: 48px;
+  display: none;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bar);
+  color: var(--ink);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+}
+.fab .ic { width: 20px; height: 20px; }
+.fab:hover { background: rgba(32, 36, 40, 0.92); }
+.fab:focus-visible { outline: 2px solid #ffc2d4; outline-offset: 2px; }
+body.controls-min .bar { display: none; }
+body.controls-min .fab { display: grid; }
+body.controls-min .hint { display: none; }
+
+@keyframes rise { from { opacity: 0; translate: 0 12px; } }
+.bar, .fab { animation: rise 0.22s ease-out; }
+
+/* ambient mode: everything fades when nothing moves, and the cursor goes too */
+.brand, .bar, .fab, .hint { transition: opacity 0.4s ease; }
 body.idle .brand,
 body.idle .bar,
+body.idle .fab,
 body.idle .hint { opacity: 0; pointer-events: none; }
-/* ambient mode: once the controls fade, the cursor goes with them */
 body.idle #scene { cursor: none; }
 
 /* ---- smaller windows ----------------------------------------------------------- */
@@ -252,8 +268,26 @@ body.idle #scene { cursor: none; }
 }
 
 @media (max-width: 720px) {
-  .bar { font-size: 13px; bottom: 12px; }
-  .btn, .item { height: 34px; padding: 0 9px; gap: 6px; }
+  /* on a phone the controls are a panel across the bottom, opened from the round button */
+  .bar {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    transform: none;
+    width: auto;
+    max-width: none;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 8px;
+    border-radius: 22px;
+    font-size: 13px;
+  }
+  .btn, .item { height: 36px; padding: 0 10px; gap: 6px; }
   kbd, .hint { display: none; }
   .brand { top: 16px; left: 16px; }
+  .fab { bottom: 14px; }
+
+  /* dropdowns open across the panel, above it */
+  .menu-wrap { position: static; }
+  .menu { left: 0; right: 0; min-width: 0; max-height: 42vh; bottom: calc(100% + 10px); }
 }

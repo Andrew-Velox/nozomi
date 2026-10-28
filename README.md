@@ -27,6 +27,7 @@ Plain TypeScript and Canvas 2D, **no runtime dependencies**, about 16 KB of Java
   frame-rate cap (24 / 30 / 45 / 60) to keep it light.
 - **Synthesised sound** (wind, rain and a soft chime on click). No audio files, and nothing loads
   until you switch it on.
+- **Works on a phone.** The controls collapse into a round menu button and open as a bottom panel.
 - Settings are remembered. It respects `prefers-reduced-motion`.
 
 ## Run it
@@ -42,21 +43,24 @@ Node 20 or newer is recommended.
 
 ## Controls
 
-Everything is in the bar at the bottom: Ambient, an fps menu, Hide UI, a Gust button, a petal
-counter, dropdowns for weather, tree form and blossom colour, and switches for Detail, Wind, Rain and
-Sound. The keyboard works too:
+Everything is in the bar at the bottom: Ambient, an fps menu, Minimise, a Gust button, dropdowns for
+weather, tree form and blossom colour, and switches for Detail, Wind, Rain and Sound. Minimise tucks
+the bar away into a round menu button; tap it to bring the bar back.
+
+On a phone the controls start minimised so they never cover the tree. Tap the round button to open
+them as a panel across the bottom; it closes itself a few seconds after your last touch, and tapping
+the tree tucks it away too. The keyboard works as well:
 
 | Key | Does |
 | --- | --- |
 | click / tap | shake blossom loose and send a gust through the air; on the blossom and the weeping strands it also sends a ripple rolling through them. Drag to sweep petals along |
 | `space` | gust of wind |
 | `f` | Ambient mode: fullscreen, and the controls fade away after a couple of idle seconds (move to bring them back, `Esc` to leave) |
-| `h` | hide / show the interface |
 | `r` | regrow the tree (a new shape every time) |
 | `s` | tree form: yoshino, bush, shidare, random |
 | `c` / `C` | next / previous blossom colour |
 | `d` | detail mode on / off |
-| `p` / `P` | more / fewer petals |
+| `p` / `P` | more / fewer petals (1 to 10) |
 | `a` | wind on / off |
 | `w` / `W` | more / less wind |
 | `e` / `E` | next / previous weather |
