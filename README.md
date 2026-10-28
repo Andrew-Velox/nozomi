@@ -5,7 +5,12 @@ wind, settle in the grass and fade. The tree is different every time you regrow 
 
 Plain TypeScript and Canvas 2D, **no runtime dependencies**, about 16 KB of JavaScript gzipped.
 
-![A pink yoshino cherry tree in detail mode, with the control bar](docs/preview-detail.jpg)
+<p align="center">
+  <img src="docs/demo.webp" alt="A 33 second tour of Sakura: a cherry blossom tree with wind, clicks, three kinds of cherry, blossom colours, weather, rain and cell mode" width="100%">
+</p>
+
+<p align="center"><sub>A 33 second tour: wind and gusts, clicking the tree, the three kinds of cherry, blossom colours, weather and rain, and cell mode.
+<a href="docs/demo.mp4">Full-quality video (mp4, 1920 px)</a></sub></p>
 
 | Weeping cherry, moonlight and rain | Cell mode, sunset |
 | --- | --- |
@@ -50,7 +55,11 @@ drag it anywhere you like (it remembers where).
 
 On a phone the controls start minimised so they never cover the tree. Tap the round button to open
 them as a panel across the bottom; it closes itself a few seconds after your last touch, and tapping
-the tree tucks it away too. The keyboard works as well:
+the tree tucks it away too.
+
+![The control bar at the bottom of the screen](docs/preview-detail.jpg)
+
+The keyboard works as well:
 
 | Key | Does |
 | --- | --- |
