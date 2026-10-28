@@ -42,8 +42,8 @@ Settings persist between visits.
 - `curtain.ts` – the weeping cherry's hanging strands are a separate layer, redrawn each frame a row
   at a time with a wind-driven sideways shift that grows toward the loose ends, so they sway; clicking or dragging across them adds a decaying ripple that rolls outward and down.
 - `weather.ts` – each weather is a "look" (tint, sky veil, light, clouds, fog, rain, wind and petal-fall
-  multipliers) drawn as overlays on the finished scene; changing weather eases every number, so
-  nothing is regrown. `rain.ts` adds streaks that lean with the wind and splash in the grass.
+  multipliers) drawn as overlays on the sky behind the tree (the tree, grass and petals are drawn on top, so they
+  stay clear in every weather); changing weather eases every number, so nothing is regrown. `rain.ts` adds streaks that lean with the wind and splash in the grass.
 - `lightning.ts` – strikes at random while on (more often in a stormy sky): a flash with flicker, a
   forked bolt snapped to the pixel grid, then thunder a moment later that gusts the wind and
   shakes blossom loose. Reduced-motion users get a single softer flash and no bolt.

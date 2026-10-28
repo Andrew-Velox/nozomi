@@ -237,8 +237,8 @@ export function growCellTree(env: CellEnv, form: Form): Point[] {
         if (rng() < t * 0.45) continue;
         const idx = clamp(Math.floor(1.5 + t * 3.5 + rand(-1, 1)), 0, 7);
         const bg = rowBg[y];
-        if (rng() < 0.22) strands.set(x, y, { glyph: bloom(), color: ramp[idx], bg, cov: 1, kind: K_CANOPY });
-        else strands.set(x, y, { glyph: G_BLOCK, color: ramp[idx], bg, cov: t < 0.55 ? 0.48 : 0.24, kind: K_CANOPY });
+        if (rng() < 0.22) strands.set(x, y, { glyph: bloom(), color: ramp[idx], bg, cov: 1, kind: K_CANOPY, sky: true });
+        else strands.set(x, y, { glyph: G_BLOCK, color: ramp[idx], bg, cov: t < 0.55 ? 0.48 : 0.24, kind: K_CANOPY, sky: true });
         if (rng() < 0.15) sources.push([x, y]);
       }
     }
@@ -266,8 +266,10 @@ export function growCellTree(env: CellEnv, form: Form): Point[] {
 
       // the tip fades out with a partly covered cell, or a single blade
       if (y - full >= 0) {
-        if (rng() < 0.3) put(x, y - full, G_BLADE, shade(full, full + 1), K_GROUND);
-        else if (frac > 0.25) put(x, y - full, G_BLOCK, shade(full, full + 1), K_GROUND, frac > 0.66 ? 0.74 : frac > 0.4 ? 0.48 : 0.24);
+        const tip = (glyph: number, cov: number): void =>
+          grid.set(x, y - full, { glyph, color: shade(full, full + 1), bg: rowBg[y - full], cov, kind: K_GROUND, sky: true });
+        if (rng() < 0.3) tip(G_BLADE, 1);
+        else if (frac > 0.25) tip(G_BLOCK, frac > 0.66 ? 0.74 : frac > 0.4 ? 0.48 : 0.24);
       }
 
       // fallen petals resting on the grass, thickest round the roots

@@ -19,6 +19,8 @@ export interface Cell {
   cov: number;
   glyph: number;
   kind: number;
+  /** The cell's background is just the sky: draw nothing behind it, and fade partial cells into what is there. */
+  sky?: boolean;
 }
 
 export class Grid {

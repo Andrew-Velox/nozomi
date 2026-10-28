@@ -69,7 +69,9 @@ function save(): void {
 const canvas = document.getElementById("scene") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d", { alpha: false })!;
 const treeCanvas = document.createElement("canvas");
-const treeCtx = treeCanvas.getContext("2d", { alpha: false })!;
+const treeCtx = treeCanvas.getContext("2d")!; // transparent: the sky changes behind it
+const bgCanvas = document.createElement("canvas"); // sky and stars
+const bgCtx = bgCanvas.getContext("2d", { alpha: false })!;
 
 const wind = new Wind();
 wind.level = opts.wind;
@@ -98,23 +100,23 @@ function setPetalCount(w: number): void {
 }
 
 function paintBackdrop(w: number, h: number, rng: () => number): void {
-  const bg = treeCtx.createLinearGradient(0, 0, 0, h);
+  const bg = bgCtx.createLinearGradient(0, 0, 0, h);
   bg.addColorStop(0, css(BG_TOP));
   bg.addColorStop(1, css(BG_BOT));
-  treeCtx.fillStyle = bg;
-  treeCtx.fillRect(0, 0, w, h);
+  bgCtx.fillStyle = bg;
+  bgCtx.fillRect(0, 0, w, h);
 
   // a faint pink haze behind the crown and a scatter of dim stars
-  const glow = treeCtx.createRadialGradient(w / 2, h * 0.38, 0, w / 2, h * 0.38, Math.max(w, h) * 0.5);
+  const glow = bgCtx.createRadialGradient(w / 2, h * 0.38, 0, w / 2, h * 0.38, Math.max(w, h) * 0.5);
   glow.addColorStop(0, css(mix(BG_TOP, ramp[3], 0.1)));
   glow.addColorStop(1, "rgba(0,0,0,0)");
-  treeCtx.globalAlpha = 0.9;
-  treeCtx.fillStyle = glow;
-  treeCtx.fillRect(0, 0, w, h);
-  treeCtx.globalAlpha = 1;
+  bgCtx.globalAlpha = 0.9;
+  bgCtx.fillStyle = glow;
+  bgCtx.fillRect(0, 0, w, h);
+  bgCtx.globalAlpha = 1;
   for (let i = 0; i < Math.round((w * h) / 9000); i++) {
-    treeCtx.fillStyle = `rgba(255, 232, 244, ${0.1 + rng() * 0.3})`;
-    treeCtx.fillRect(Math.floor(rng() * w), Math.floor(rng() * h * 0.7), 1, 1);
+    bgCtx.fillStyle = `rgba(255, 232, 244, ${0.1 + rng() * 0.3})`;
+    bgCtx.fillRect(Math.floor(rng() * w), Math.floor(rng() * h * 0.7), 1, 1);
   }
 }
 
@@ -134,6 +136,7 @@ function grow(): void {
   let sources: Point[];
 
   paintBackdrop(w, h, mulberry32(seed ^ 0x9e3779b9));
+  treeCtx.clearRect(0, 0, w, h);
   if (opts.detail) {
     sources = growDetailTree({ grid, foliage, strands, ramp, bgBottom: BG_BOT, rng }, form);
   } else {
@@ -169,7 +172,7 @@ function layout(): void {
   const w = innerWidth;
   const h = innerHeight;
   const dpr = Math.min(devicePixelRatio || 1, 2);
-  for (const c of [canvas, treeCanvas]) {
+  for (const c of [canvas, treeCanvas, bgCanvas]) {
     c.width = Math.round(w * dpr);
     c.height = Math.round(h * dpr);
   }
@@ -177,6 +180,7 @@ function layout(): void {
   canvas.style.height = `${h}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   treeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   if (opts.detail) {
     // square pixels, fine enough for the branching to read at any size
@@ -431,14 +435,17 @@ function frame(now: number): void {
 
   const w = innerWidth;
   const h = innerHeight;
+  // The weather lives in the sky: it is drawn on the background first, and the
+  // tree, grass and petals go on top of it untouched.
+  ctx.drawImage(bgCanvas, 0, 0, w, h);
+  weatherFx.drawGrade(ctx, w, h, now / 1000);
+  weatherFx.drawVignette(ctx, w, h);
   ctx.drawImage(treeCanvas, 0, 0, w, h);
   leaves.draw(ctx, now / 1000, wind);
   curtain.draw(ctx, now / 1000, wind);
   petals.draw(ctx);
-  weatherFx.drawGrade(ctx, w, h, now / 1000);
   rain.draw(ctx, wind, look.rain);
   lightning.draw(ctx, w, h, world);
-  weatherFx.drawVignette(ctx, w, h);
 }
 
 syncUi();
