@@ -1,27 +1,10 @@
-<h1 align="center">Sakura 桜</h1>
+# Sakura 桜 🌸
 
-<p align="center">
-  A calm, procedurally grown cherry blossom tree. Petals fall from the crown, drift on a wandering wind,<br>
-  settle in the grass and fade. The tree is different every time you regrow it.
-</p>
+A calm, procedurally grown cherry blossom tree. Petals fall from the crown, drift on a wandering
+wind, settle in the grass and fade. The tree is different every time you regrow it.
 
-<p align="center">
-  <a href="https://github.com/Andrew-Velox/nozomi/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/Andrew-Velox/nozomi?label=stars&color=fb74b2&style=flat-square"></a>
-  <a href="https://github.com/Andrew-Velox/nozomi/commits/main"><img alt="last commit" src="https://img.shields.io/github/last-commit/Andrew-Velox/nozomi?color=fb74b2&style=flat-square"></a>
-  <img alt="JavaScript: 17 KB gzipped" src="https://img.shields.io/badge/JavaScript-17%20KB%20gzipped-fb74b2?style=flat-square">
-  <a href="package.json"><img alt="0 runtime dependencies" src="https://img.shields.io/badge/runtime%20dependencies-0-fb74b2?style=flat-square"></a>
-</p>
-
-<p align="center">
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178c6?style=flat-square&logo=typescript&logoColor=white">
-  <img alt="Vite" src="https://img.shields.io/badge/Vite-646cff?style=flat-square&logo=vite&logoColor=white">
-  <img alt="Canvas 2D" src="https://img.shields.io/badge/Canvas%202D-e34f26?style=flat-square&logo=html5&logoColor=white">
-</p>
-
-<p align="center">
-  Plain TypeScript and Canvas 2D, <b>no runtime dependencies</b>. The JavaScript is about 17 KB gzipped
-  (15 KB with brotli),<br>and the whole page, HTML and CSS included, is about 20 KB.
-</p>
+Plain TypeScript and Canvas 2D, **no runtime dependencies**. The JavaScript is about 17 KB gzipped
+(15 KB with brotli), and the whole page, HTML and CSS included, is about 20 KB.
 
 <p align="center">
   <img src="docs/demo.webp" alt="A 33 second tour of Sakura: a cherry blossom tree with wind, clicks, three kinds of cherry, blossom colours, weather, rain and cell mode" width="100%">
