@@ -1,6 +1,6 @@
 import { brighten, hex, mix, type Rgb } from "./color";
 import {
-  G_BLADE, G_BLOCK, G_DOT, G_LINE, G_TUFT,
+  G_BLADE, G_BLOCK, G_DOT,
   K_CANOPY, K_GROUND, K_WOOD,
   type Grid,
 } from "./grid";
@@ -14,6 +14,7 @@ export const WOOD_D = hex("#4a2c19");
 export const WOOD_M = hex("#7d4d27");
 export const WOOD_L = hex("#a8703c");
 export const GRASS = hex("#87a985");
+export const GRASS_DARK = hex("#3f6b4a");
 
 export interface CellEnv {
   grid: Grid;
@@ -22,6 +23,7 @@ export interface CellEnv {
   rowHaze: Rgb[]; // the dark shade the canopy sits on, per row
   aspect: number; // cell height / cell width
   rng: Rng;
+  foliage: Grid; // blossom goes here so it can sway
   strands: Grid; // weeping strands go here so they can sway
 }
 
@@ -60,7 +62,7 @@ const shadeOf = (c: number): number => (c > 0.85 ? 1 : c > 0.55 ? 0.74 : c > 0.2
 
 /** Grow a tree out of character-style cells. Returns the cells petals fall from. */
 export function growCellTree(env: CellEnv, form: Form): Point[] {
-  const { grid, ramp, rowBg, rowHaze, rng, strands } = env;
+  const { grid, ramp, rowBg, rowHaze, rng, strands, foliage } = env;
   const gw = grid.w;
   const gh = grid.h;
   const ar = env.aspect;
@@ -74,6 +76,10 @@ export function growCellTree(env: CellEnv, form: Form): Point[] {
 
   const put = (x: number, y: number, glyph: number, color: Rgb, kind: number, cov = 1, bg?: Rgb): void => {
     grid.set(x, y, { glyph, color, bg: bg ?? rowBg[Math.floor(y)] ?? rowBg[gh - 1], cov, kind });
+  };
+
+  const putLeaf = (x: number, y: number, glyph: number, color: Rgb, cov: number, bg: Rgb): void => {
+    foliage.set(x, y, { glyph, color, bg, cov, kind: K_CANOPY });
   };
 
   // ---- field of blossom: a sum of soft blobs --------------------------------
@@ -167,7 +173,7 @@ export function growCellTree(env: CellEnv, form: Form): Point[] {
         // Ragged rim. Gaps deep in the crown fall back to the deepest blossom
         // tone, so they read as shadow instead of black specks.
         if (cov < 0.55 && rng() > cov * 1.5) {
-          if (cov0 > 0.6 && grid.kind(x, y) !== K_WOOD) put(x, y, G_BLOCK, ramp[7], K_CANOPY, 0.74, haze);
+          if (cov0 > 0.6 && grid.kind(x, y) !== K_WOOD) putLeaf(x, y, G_BLOCK, ramp[7], 0.74, haze);
           continue;
         }
 
@@ -203,7 +209,7 @@ export function growCellTree(env: CellEnv, form: Form): Point[] {
           if (idx > 2 && rng() < 0.35) color = brighten(color);
         }
 
-        put(x, y, glyph, color, K_CANOPY, shadeCov, bg);
+        putLeaf(x, y, glyph, color, shadeCov, bg);
         if ((cov < 0.55 || fu > f * 1.1) && rng() < 0.5) sources.push([x, y]);
       }
     }
@@ -216,7 +222,7 @@ export function growCellTree(env: CellEnv, form: Form): Point[] {
       if (x < 0 || x >= gw || rng() < 0.25) continue;
       let y0 = -1;
       for (let y = gh - 2; y >= 0; y--) {
-        if (grid.kind(x, y) === K_CANOPY) {
+        if (foliage.kind(x, y) === K_CANOPY) {
           y0 = y;
           break;
         }
@@ -239,24 +245,37 @@ export function growCellTree(env: CellEnv, form: Form): Point[] {
   };
 
   // ---- ground ---------------------------------------------------------------
+  // A carpet of grass: every column is solid from the ground up to its own
+  // height, dark at the root and lighter toward the tip, taller in clumps. It
+  // is drawn after the trunk so it grows in front of the base of the log.
   const genGround = (cx: number, rx: number): void => {
     const y = gh - 1;
+    const rows = clamp(Math.round(gh * 0.09), 2, 4);
+    const shade = (k: number, of: number): Rgb =>
+      mix(GRASS_DARK, GRASS, clamp((of <= 1 ? 0.5 : k / (of - 1)) * 0.75 + rng() * 0.3, 0, 1));
+
     for (let x = 0; x < gw; x++) {
       const dx = (x - cx) / (rx * 1.25);
-      const p = Math.exp(-dx * dx * 2.2); // grass thins out away from the tree
-      const r = rng();
-      const grass = mix(rowBg[y], GRASS, 0.3 + 0.7 * p);
-      if (r < p * 0.55) {
-        const rr = rng();
-        const g = rr < 0.28 ? bloom() : rr < 0.62 ? G_DOT : G_BLADE;
-        put(x, y, g, ramp[2 + Math.floor(rng() * 4)], K_GROUND);
-      } else if (r < p * 0.55 + 0.1) put(x, y, G_TUFT, grass, K_GROUND);
-      else if (r < p * 0.55 + 0.16) put(x, y, G_BLADE, grass, K_GROUND);
-      else put(x, y, G_LINE, grass, K_GROUND);
+      const p = Math.exp(-dx * dx * 2.2);
+      const clump = noise2(x * 0.17, 7.3) * 0.7 + noise2(x * 0.5, 3.1) * 0.3;
+      const height = 1 + (rows - 0.4) * clump * (0.5 + rng() * 0.7);
+      const full = Math.floor(height);
+      const frac = height - full;
 
-      // a drift of fallen petals gathering round the roots
-      if (gh > 4 && rng() < p * 0.28)
-        put(x, y - 1, rng() < 0.35 ? bloom() : G_DOT, mix(rowBg[y - 1], ramp[2 + Math.floor(rng() * 3)], 0.85), K_GROUND);
+      for (let k = 0; k < full; k++) put(x, y - k, G_BLOCK, shade(k, full), K_GROUND);
+
+      // the tip fades out with a partly covered cell, or a single blade
+      if (y - full >= 0) {
+        if (rng() < 0.3) put(x, y - full, G_BLADE, shade(full, full + 1), K_GROUND);
+        else if (frac > 0.25) put(x, y - full, G_BLOCK, shade(full, full + 1), K_GROUND, frac > 0.66 ? 0.74 : frac > 0.4 ? 0.48 : 0.24);
+      }
+
+      // fallen petals resting on the grass, thickest round the roots
+      if (rng() < p * 0.3) {
+        const row = Math.floor(rng() * Math.min(full, 2));
+        const under = grid.at(x, y - row)?.color ?? rowBg[y];
+        put(x, y - row, rng() < 0.4 ? bloom() : G_DOT, ramp[1 + Math.floor(rng() * 3)], K_GROUND, 1, under);
+      }
     }
   };
 
@@ -288,8 +307,8 @@ export function growCellTree(env: CellEnv, form: Form): Point[] {
   const bx = mid - lean * 0.5;
   const tx = cx - lean * 0.2 + rand(-1, 1) * Math.max(rx * 0.03, 0.4);
 
-  genGround(cx, rx);
   genTrunk(bx, tx, fy, trunkW);
+  genGround(cx, rx); // after the trunk, so the grass grows in front of it
 
   // Limbs fan across the crown: centre ones reach highest, outer ones spread
   // wide before turning up.

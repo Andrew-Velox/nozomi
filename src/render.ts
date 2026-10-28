@@ -31,14 +31,14 @@ function glyph(ctx: CanvasRenderingContext2D, g: number, x: number, y: number, w
     case G_DOT:
       ctx.fillRect(cx, cy, u, u);
       break;
-    case G_TUFT:
-      ctx.fillRect(cx - u * 2, y + h * 0.55, u, h * 0.45);
-      ctx.fillRect(cx, y + h * 0.3, u, h * 0.7);
-      ctx.fillRect(cx + u * 2, y + h * 0.5, u, h * 0.5);
+    case G_TUFT: // three chunky blades of different heights
+      ctx.fillRect(cx - u * 3, y + h * 0.5, u * 2, h * 0.5);
+      ctx.fillRect(cx - u, y + h * 0.2, u * 2, h * 0.8);
+      ctx.fillRect(cx + u, y + h * 0.42, u * 2, h * 0.58);
       break;
     case G_BLADE:
-      ctx.fillRect(cx, y + h * 0.55, u, h * 0.45);
-      ctx.fillRect(cx + u, y + h * 0.4, u, h * 0.2);
+      ctx.fillRect(cx - u, y + h * 0.4, u * 2, h * 0.6);
+      ctx.fillRect(cx, y + h * 0.25, u, h * 0.3);
       break;
     case G_LINE:
       ctx.fillRect(x, y + h - u, w, u);

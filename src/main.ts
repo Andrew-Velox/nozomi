@@ -1,18 +1,20 @@
 import "./style.css";
 import { Audio } from "./audio";
 import { css, hex, mix, type Rgb } from "./color";
-import { Curtain } from "./curtain";
 import { Grid } from "./grid";
 import { PALETTE_NAMES, makeRamp } from "./palettes";
 import { Petals, type PetalWorld } from "./petals";
 import { drawGrid } from "./render";
 import { mulberry32 } from "./rng";
+import { SwayLayer } from "./sway";
 import { growCellTree, type Form, type Point } from "./tree";
 import { growDetailTree } from "./treehd";
 import { Wind } from "./wind";
 
 type Style = Form | "random";
 const STYLES: Style[] = ["yoshino", "bush", "shidare", "random"];
+// reach of the ripple a click sends through the blossom, in px; the random ones are wider
+const CLICK_RADIUS = 45;
 const STORAGE_KEY = "sakura:v2";
 const BG_TOP = hex("#1a1322");
 const BG_BOT = hex("#110d17");
@@ -70,7 +72,8 @@ const audio = new Audio();
 
 const world: PetalWorld = { w: 1, h: 1, groundY: 1, u: 2, scale: 1, sources: [], colors: [], faded: "#b08aa6" };
 const petals = new Petals(world, wind);
-const curtain = new Curtain();
+const leaves = new SwayLayer(); // blossom clusters
+const curtain = new SwayLayer(); // weeping strands
 
 let ramp: Rgb[] = makeRamp(opts.palette);
 let seed = (Math.random() * 1e9) | 0;
@@ -107,9 +110,11 @@ function grow(): void {
   const w = innerWidth;
   const h = innerHeight;
   const rng = mulberry32(seed);
-  const cols = Math.max(Math.floor(w / cellW), 20);
-  const rows = Math.max(Math.floor(h / cellH), 12);
+  // round up so the grid covers the whole window: no empty strip under the grass
+  const cols = Math.max(Math.ceil(w / cellW), 20);
+  const rows = Math.max(Math.ceil(h / cellH), 12);
   const grid = new Grid(cols, rows);
+  const foliage = new Grid(cols, rows);
   const strands = new Grid(cols, rows);
 
   let form: Form = opts.style === "random" ? (rng() < 0.45 ? "yoshino" : rng() < 0.55 ? "bush" : "shidare") : opts.style;
@@ -117,7 +122,7 @@ function grow(): void {
 
   paintBackdrop(w, h, mulberry32(seed ^ 0x9e3779b9));
   if (opts.detail) {
-    sources = growDetailTree({ grid, strands, ramp, bgBottom: BG_BOT, rng }, form);
+    sources = growDetailTree({ grid, foliage, strands, ramp, bgBottom: BG_BOT, rng }, form);
   } else {
     const rowBg: Rgb[] = [];
     const rowHaze: Rgb[] = [];
@@ -128,14 +133,16 @@ function grow(): void {
       // a tint straight into dark plum bleeds the hue out to grey.
       rowHaze.push(mix(bg, ramp[6], 0.22));
     }
-    sources = growCellTree({ grid, strands, ramp, rowBg, rowHaze, aspect: cellH / cellW, rng }, form);
+    sources = growCellTree({ grid, foliage, strands, ramp, rowBg, rowHaze, aspect: cellH / cellW, rng }, form);
   }
   drawGrid(treeCtx, grid, cellW, cellH);
-  curtain.build(strands, cellW, cellH, Math.min(devicePixelRatio || 1, 2), opts.detail ? 5 : 2.2);
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  leaves.build(foliage, cellW, cellH, dpr, { mode: "mass", swing: 1, ambient: 1.0, tempo: 0.6 });
+  curtain.build(strands, cellW, cellH, dpr, { mode: "hang", swing: opts.detail ? 5 : 2.2 });
 
   world.w = w;
   world.h = h;
-  world.groundY = (grid.h - 1) * cellH;
+  world.groundY = Math.min((grid.h - 1) * cellH, h - 2);
   world.sources = sources.map(([x, y]) => [(x + 0.5) * cellW, (y + 0.5) * cellH]);
   recolor();
 }
@@ -307,11 +314,13 @@ addEventListener("keydown", (e) => {
 // drag to sweep petals along.
 let pointer: Point | null = null;
 let lastBrush = 0;
+let lastLeafBrush = 0;
 const clock = (): number => performance.now() / 1000;
 canvas.addEventListener("pointerdown", (e) => {
   canvas.setPointerCapture(e.pointerId);
   pointer = [e.clientX, e.clientY];
   if (curtain.hit(e.clientX, e.clientY)) curtain.poke(e.clientX, e.clientY);
+  if (leaves.hit(e.clientX, e.clientY)) leaves.poke(e.clientX, e.clientY, 1.6, CLICK_RADIUS);
   petals.shed(e.clientX, e.clientY, 140, 36);
   petals.impulse(e.clientX, e.clientY, 160 * world.scale, 150);
   audio.chime();
@@ -325,6 +334,10 @@ canvas.addEventListener("pointermove", (e) => {
   if (clock() - lastBrush > 0.09 && Math.hypot(dx, dy) > 3 && curtain.hit(e.clientX, e.clientY)) {
     lastBrush = clock();
     curtain.poke(e.clientX, e.clientY, 0.5);
+  }
+  if (clock() - lastLeafBrush > 0.09 && Math.hypot(dx, dy) > 3 && leaves.hit(e.clientX, e.clientY)) {
+    lastLeafBrush = clock();
+    leaves.poke(e.clientX, e.clientY, 0.8, CLICK_RADIUS);
   }
   petals.shed(e.clientX, e.clientY, 60, 2);
   petals.impulse(e.clientX, e.clientY, 90 * world.scale, Math.min(120, Math.hypot(dx, dy) * 6));
@@ -361,6 +374,7 @@ function frame(now: number): void {
   audio.setWind(wind.strength);
 
   ctx.drawImage(treeCanvas, 0, 0, innerWidth, innerHeight);
+  leaves.draw(ctx, now / 1000, wind);
   curtain.draw(ctx, now / 1000, wind);
   petals.draw(ctx);
 }

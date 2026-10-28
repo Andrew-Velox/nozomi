@@ -2,10 +2,11 @@ import { mix, type Rgb } from "./color";
 import { G_BLOCK, K_CANOPY, K_GROUND, K_WOOD, type Grid } from "./grid";
 import { noise2 } from "./noise";
 import type { Rng } from "./rng";
-import { GRASS, WOOD_D, WOOD_L, WOOD_M, type Form, type Point } from "./tree";
+import { GRASS, GRASS_DARK, WOOD_D, WOOD_L, WOOD_M, type Form, type Point } from "./tree";
 
 export interface HdEnv {
   grid: Grid; // square cells: one cell is one pixel
+  foliage: Grid; // blossom goes here so it can sway
   strands: Grid; // weeping strands go here so they can sway
   ramp: Rgb[];
   bgBottom: Rgb;
@@ -52,7 +53,7 @@ export function growDetailTree(env: HdEnv, form: Form): Point[] {
   const range = (r: [number, number]): number => rand(r[0], r[1]);
 
   const px = (x: number, y: number, color: Rgb, kind: number): void => {
-    grid.set(x, y, { glyph: G_BLOCK, color, bg: color, cov: 1, kind });
+    (kind === K_CANOPY ? env.foliage : grid).set(x, y, { glyph: G_BLOCK, color, bg: color, cov: 1, kind });
   };
 
   const ground = H - 1;
@@ -265,7 +266,7 @@ export function growDetailTree(env: HdEnv, form: Form): Point[] {
       for (let k = 0; k < rb * 0.9 * s; k++) {
         const fx = cxB + rand(-1, 1) * w * 0.8;
         const fy = cyB + rand(-1, 0.6) * h * 0.8;
-        if (grid.kind(fx, fy) === K_CANOPY) px(fx, fy, rng() < 0.5 ? ramp[0] : ramp[2], K_CANOPY);
+        if (env.foliage.kind(fx, fy) === K_CANOPY) px(fx, fy, rng() < 0.5 ? ramp[0] : ramp[2], K_CANOPY);
       }
     }
   }
@@ -276,7 +277,7 @@ export function growDetailTree(env: HdEnv, form: Form): Point[] {
       if (rng() < 0.35) continue;
       let y0 = -1;
       for (let y = ground - 2; y >= 0; y--) {
-        if (grid.kind(x, y) === K_CANOPY) {
+        if (env.foliage.kind(x, y) === K_CANOPY) {
           y0 = y;
           break;
         }
@@ -295,12 +296,20 @@ export function growDetailTree(env: HdEnv, form: Form): Point[] {
   }
 
   // ---- ground ---------------------------------------------------------------
+  // Grass in clumps: every column gets blades of its own height, dark at the
+  // root and lighter toward the tip, taller in the clumps.
+  const maxBlade = clamp(Math.round(tall * 0.05), 3, 9);
   for (let x = 0; x < W; x++) {
     const d = (x - cx) / (rx * 1.2);
     const p = Math.exp(-d * d * 2.2);
-    px(x, ground, mix(env.bgBottom, GRASS, 0.35 + 0.5 * p), K_GROUND);
-    if (rng() < 0.35) px(x, ground - 1, mix(env.bgBottom, GRASS, 0.3 + 0.4 * rng()), K_GROUND);
-    if (rng() < p * 0.4) px(x, ground - (rng() < 0.5 ? 0 : 1), ramp[1 + Math.floor(rng() * 3)], K_GROUND);
+    const clump = noise2(x * 0.12, 5.1) * 0.7 + noise2(x * 0.4, 9.7) * 0.3;
+    const h = Math.max(1, Math.round(1 + maxBlade * clump * (0.45 + rng() * 0.75)));
+    for (let k = 0; k < h; k++) {
+      const y = ground - k;
+      const tip = h > 1 ? k / (h - 1) : 0;
+      px(x, y, mix(GRASS_DARK, GRASS, clamp(tip * 0.9 + (rng() - 0.5) * 0.25 + 0.1, 0, 1)), K_GROUND);
+    }
+    if (rng() < p * 0.4) px(x, ground - Math.floor(rng() * 3), ramp[1 + Math.floor(rng() * 3)], K_GROUND);
   }
   return sources;
 }
