@@ -48,6 +48,9 @@ html, body {
   right: 16px;
   bottom: 16px;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: calc(100vw - 32px);
   gap: 8px;
 }
 

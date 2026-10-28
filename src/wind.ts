@@ -5,6 +5,8 @@ import { noise2 } from "./noise";
 export class Wind {
   /** 0..10, the knob the interface exposes. */
   level = 3;
+  /** Weather multiplies the wind: storms blow harder, mist is still. */
+  boost = 1;
   /** Master switch: when off the air is dead still. */
   enabled = true;
   /** Scales everything down for reduced-motion users. */
@@ -42,7 +44,7 @@ export class Wind {
         this.gust = phase * phase * this.gustPeak;
       }
     }
-    const base = (noise2(this.t * 0.08, 3.1) * 1.2 - 0.25) * 18 * this.level * this.calm;
+    const base = (noise2(this.t * 0.08, 3.1) * 1.2 - 0.25) * 18 * this.level * this.calm * this.boost;
     this.x = base + this.gust;
     this.strength = Math.min(1, Math.abs(this.x) / 130);
   }
@@ -52,6 +54,6 @@ export class Wind {
     if (!this.enabled || this.level <= 0) return;
     this.gustAge = 0;
     this.gustDuration = 2.5 + Math.random() * 2;
-    this.gustPeak = peak * this.calm * Math.max(0.5, this.level / 3);
+    this.gustPeak = peak * this.calm * this.boost * Math.max(0.5, this.level / 3);
   }
 }

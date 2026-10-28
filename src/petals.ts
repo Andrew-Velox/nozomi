@@ -32,6 +32,8 @@ const rnd = (a: number, b: number): number => a + Math.random() * (b - a);
 
 export class Petals {
   target = 200;
+  /** Weather: rain weighs petals down so they fall faster. */
+  fallMul = 1;
   private items: Petal[] = [];
   private debt = 0;
 
@@ -71,7 +73,7 @@ export class Petals {
       p.phase += p.freq * dt;
       const sway = Math.sin(p.phase) * p.amp * scale;
       p.vx += (this.wind.x * p.gain * scale + sway - p.vx) * k;
-      p.vy += (p.fall * scale + Math.cos(p.phase * 0.7) * 8 - p.vy) * k;
+      p.vy += (p.fall * scale * this.fallMul + Math.cos(p.phase * 0.7) * 8 - p.vy) * k;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
 
