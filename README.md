@@ -13,22 +13,29 @@ npm run build    # type-check + production build into dist/
 
 ## Controls
 
+Everything is in the bar at the bottom: Ambient, an fps menu, Hide UI, a Gust button, a petal
+counter, dropdowns for weather, tree form and blossom colour, and switches for Detail, Wind, Rain and
+Sound. The keyboard works too:
+
 | Key | Does |
 | --- | --- |
-| click / tap | shake blossom loose from the crown and send a gust through the air (drag to sweep petals); on the weeping strands it also sends a ripple rolling through them |
+| click / tap | shake blossom loose from the crown and send a gust through the air (drag to sweep petals); on the weeping strands and the blossom it also sends a ripple rolling through them |
 | `space` | gust of wind |
+| `f` | Ambient mode: fullscreen, and the controls fade away after a couple of idle seconds (move to bring them back, `Esc` to leave) |
+| `h` | hide / show the interface |
 | `r` | regrow the tree (a new shape every time) |
 | `s` | tree form: yoshino, bush, shidare (weeping), random |
 | `c` / `C` | next / previous blossom colour (12 palettes) |
 | `d` | detail mode: a fully branched pixel tree |
 | `p` / `P` | more / fewer petals |
-| `w` / `W` | more / less wind |
 | `a` | wind on / off (off: no wind, strands hang still, petals fall straight) |
-| `e` / `E` | next / previous weather: clear, sunset, moonlight, overcast, mist, rain |
+| `w` / `W` | more / less wind |
+| `e` / `E` | next / previous weather: clear, sunset, moonlight, overcast, mist |
+| `y` | rain on / off, on top of any weather |
 | `m` | synthesised sound: wind and rain, plus a chime on click |
-| `h` | hide the interface |
 
-Settings persist between visits.
+The frame-rate menu (24 / 30 / 45 / 60) caps how often the scene is drawn, which keeps it light
+when it is used as a wallpaper. Settings persist between visits.
 
 ## How it works
 

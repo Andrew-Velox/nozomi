@@ -1,6 +1,6 @@
 import type { Rgb } from "./color";
 
-export const WEATHERS = ["clear", "sunset", "moonlight", "overcast", "mist", "rain"] as const;
+export const WEATHERS = ["clear", "sunset", "moonlight", "overcast", "mist"] as const;
 export type Weather = (typeof WEATHERS)[number];
 
 type Rgba = [number, number, number, number];
@@ -53,12 +53,36 @@ export const LOOKS: Record<Weather, Look> = {
     glow: [235, 225, 245], glowAlpha: 0.1, glowX: 0.5, glowY: 0.5,
     vignette: 0.16, cloud: 0.25, fog: 0.85, rain: 0, windMul: 0.6, fall: 0.85, dark: 0,
   },
-  rain: {
-    tint: [174, 194, 216], veilTop: [50, 62, 84, 0.64], veilBottom: [34, 44, 62, 0.56],
-    glow: [150, 180, 220], glowAlpha: 0, glowX: 0.5, glowY: 0.2,
-    vignette: 0.42, cloud: 0.62, fog: 0.25, rain: 1, windMul: 1.8, fall: 1.5, dark: 0.12,
-  },
 };
+
+const RAIN_VEIL_TOP: Rgba = [50, 62, 84, 0.64];
+const RAIN_VEIL_BOTTOM: Rgba = [34, 44, 62, 0.56];
+
+const towards = (v: Rgba, to: Rgba, k: number): Rgba => [
+  v[0] + (to[0] - v[0]) * k,
+  v[1] + (to[1] - v[1]) * k,
+  v[2] + (to[2] - v[2]) * k,
+  Math.max(v[3], to[3] * 0.9),
+];
+
+/** The look for a weather, with rain falling through it when `rain` is on. */
+export function lookFor(weather: Weather, rain: boolean): Look {
+  const base = LOOKS[weather];
+  if (!rain) return base;
+  const l = structuredClone(base);
+  l.veilTop = towards(l.veilTop, RAIN_VEIL_TOP, 0.7);
+  l.veilBottom = towards(l.veilBottom, RAIN_VEIL_BOTTOM, 0.7);
+  l.tint = [(l.tint[0] * 174) / 255, (l.tint[1] * 194) / 255, (l.tint[2] * 216) / 255];
+  l.glowAlpha *= 0.4;
+  l.vignette = Math.max(l.vignette, 0.42);
+  l.cloud = Math.max(l.cloud, 0.62);
+  l.fog = Math.max(l.fog, 0.25);
+  l.dark = Math.max(l.dark, 0.12);
+  l.rain = 1;
+  l.windMul = Math.max(l.windMul, 1.8);
+  l.fall = Math.max(l.fall, 1.5);
+  return l;
+}
 
 function blobSprite(color: string): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
@@ -101,8 +125,8 @@ export class WeatherFx {
   private readonly clouds = drifters(7, 0.0, 0.5, 220, 420, 6, 16);
   private readonly fogs = drifters(6, 0.55, 0.98, 240, 440, 4, 10);
 
-  set(weather: Weather): void {
-    this.target = LOOKS[weather];
+  set(weather: Weather, rain: boolean): void {
+    this.target = lookFor(weather, rain);
   }
 
   /** Ease every number of the current look toward the target. */

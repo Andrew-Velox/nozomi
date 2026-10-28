@@ -16,20 +16,78 @@
 
     <header class="brand"><span class="kanji">桜</span> Sakura</header>
 
-    <nav class="dock" aria-label="Controls">
-      <button id="btn-style" type="button" title="Tree form (S)"><span id="style-label">yoshino</span><kbd>S</kbd></button>
-      <button id="btn-palette" type="button" title="Blossom colour (C)"><i id="swatch" class="swatch"></i><span id="palette-label">sakura</span><kbd>C</kbd></button>
-      <button id="btn-weather" type="button" title="Weather (E)"><span id="weather-label">clear</span><kbd>E</kbd></button>
-      <button id="btn-detail" type="button" title="Detail mode (D)" aria-pressed="false">detail <span id="detail-label">off</span><kbd>D</kbd></button>
-      <button id="btn-wind" type="button" title="Wind on/off (A)" aria-pressed="true">wind <span id="wind-label">on</span><kbd>A</kbd></button>
-      <button id="btn-sound" type="button" title="Wind sound (M)" aria-pressed="false">sound <span id="sound-label">off</span><kbd>M</kbd></button>
-      <button id="btn-hide" type="button" title="Hide interface (H)">hide<kbd>H</kbd></button>
-    </nav>
-
     <p class="hint" id="hint">
-      click the tree to shake it <i>·</i> <kbd>space</kbd> gust <i>·</i> <kbd>p</kbd> petals
-      <i>·</i> <kbd>w</kbd> wind <i>·</i> <kbd>e</kbd> weather <i>·</i> <kbd>r</kbd> regrow
+      click the tree to shake it <i>·</i> <kbd>r</kbd> regrow <i>·</i> <kbd>w</kbd> wind strength
+      <i>·</i> <kbd>e</kbd> weather <i>·</i> <kbd>y</kbd> rain
     </p>
+
+    <div class="bar" id="bar" role="toolbar" aria-label="Controls">
+      <button class="btn" id="btn-ambient" type="button" title="Ambient mode: fullscreen, controls fade when idle (F)">
+        <span data-icon="maximize"></span><span class="lbl">Ambient</span><kbd>F</kbd>
+      </button>
+
+      <div class="menu-wrap">
+        <button class="btn" id="btn-fps" type="button" title="Frame rate" aria-haspopup="true" aria-expanded="false">
+          <span data-icon="gauge"></span><span class="lbl" id="fps-label">60 fps</span>
+        </button>
+        <div class="menu" hidden></div>
+      </div>
+
+      <button class="btn" id="btn-hide" type="button" title="Hide interface (H)">
+        <span data-icon="eyeoff"></span><span class="lbl">Hide UI</span><kbd>H</kbd>
+      </button>
+
+      <span class="sep"></span>
+
+      <button class="btn accent" id="btn-gust" type="button" title="Send a gust through the tree (Space)">
+        <span data-icon="shuffle"></span><span class="lbl">Gust</span><kbd>Space</kbd>
+      </button>
+
+      <span class="sep"></span>
+
+      <div class="stepper" title="Petals ( p / P )">
+        <button id="petal-minus" type="button" aria-label="Fewer petals"><span data-icon="minus"></span></button>
+        <span id="petal-count">5</span>
+        <button id="petal-plus" type="button" aria-label="More petals"><span data-icon="plus"></span></button>
+      </div>
+
+      <div class="menu-wrap">
+        <button class="btn" id="btn-weather" type="button" title="Weather (E)" aria-haspopup="true" aria-expanded="false">
+          <span id="weather-icon"></span><span class="lbl" id="weather-label">Clear</span>
+        </button>
+        <div class="menu" hidden></div>
+      </div>
+
+      <div class="menu-wrap">
+        <button class="btn" id="btn-style" type="button" title="Tree form (S)" aria-haspopup="true" aria-expanded="false">
+          <span data-icon="leaf"></span><span class="lbl" id="style-label">Yoshino</span>
+        </button>
+        <div class="menu" hidden></div>
+      </div>
+
+      <div class="menu-wrap">
+        <button class="btn" id="btn-palette" type="button" title="Blossom colour (C)" aria-haspopup="true" aria-expanded="false">
+          <i class="swatch" id="swatch"></i><span class="lbl" id="palette-label">Sakura</span>
+        </button>
+        <div class="menu" hidden></div>
+      </div>
+
+      <span class="sep"></span>
+
+      <button class="item" id="sw-detail" type="button" role="switch" aria-checked="false" title="Detail mode (D)">
+        <span data-icon="layers"></span><span class="lbl">Detail</span><span class="track"><span class="knob"></span></span>
+      </button>
+      <button class="item" id="sw-wind" type="button" role="switch" aria-checked="true" title="Wind on/off (A)">
+        <span data-icon="wind"></span><span class="lbl">Wind</span><span class="track"><span class="knob"></span></span>
+      </button>
+      <button class="item" id="sw-rain" type="button" role="switch" aria-checked="false" title="Rain (Y)">
+        <span data-icon="rain"></span><span class="lbl">Rain</span><span class="track"><span class="knob"></span></span>
+      </button>
+      <button class="item" id="sw-sound" type="button" role="switch" aria-checked="false" title="Sound: wind, rain and chimes (M)">
+        <span data-icon="volume"></span><span class="lbl">Sound</span><span class="track"><span class="knob"></span></span>
+      </button>
+    </div>
+
     <div class="toast" id="toast" role="status"></div>
 
     <script type="module" src="/src/main.ts"></script>

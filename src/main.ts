@@ -2,6 +2,7 @@ import "./style.css";
 import { Audio } from "./audio";
 import { css, hex, mix, type Rgb } from "./color";
 import { Grid } from "./grid";
+import { icon, WEATHER_ICON } from "./icons";
 import { PALETTE_NAMES, makeRamp } from "./palettes";
 import { Petals, type PetalWorld } from "./petals";
 import { Rain } from "./rain";
@@ -18,6 +19,7 @@ const STYLES: Style[] = ["yoshino", "bush", "shidare", "random"];
 // reach of the ripple a click sends through the blossom, in px; the random ones are wider
 const CLICK_RADIUS = 45;
 const STORAGE_KEY = "sakura:v2";
+const FPS_CHOICES = [24, 30, 45, 60];
 const BG_TOP = hex("#1a1322");
 const BG_BOT = hex("#110d17");
 
@@ -29,13 +31,15 @@ interface Options {
   wind: number; // 0..10
   windOn: boolean;
   weather: Weather;
+  rain: boolean;
+  fps: number;
 }
 
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const clamp = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
 
 function loadOptions(): Options {
-  const fallback: Options = { palette: "sakura", style: "yoshino", detail: false, density: reducedMotion ? 2 : 5, wind: 3, windOn: true, weather: "clear" };
+  const fallback: Options = { palette: "sakura", style: "yoshino", detail: false, density: reducedMotion ? 2 : 5, wind: 3, windOn: true, weather: "clear", rain: false, fps: 60 };
   try {
     const o = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
     return {
@@ -46,6 +50,8 @@ function loadOptions(): Options {
       wind: clamp(Number.isFinite(Number(o.wind)) ? Number(o.wind) : fallback.wind, 0, 10),
       windOn: o.windOn !== false,
       weather: WEATHERS.includes(o.weather) ? o.weather : fallback.weather,
+      rain: o.rain === true || o.weather === "rain", // rain used to be a weather of its own
+      fps: FPS_CHOICES.includes(o.fps) ? o.fps : fallback.fps,
     };
   } catch {
     return fallback; // storage can be blocked
@@ -79,7 +85,7 @@ const audio = new Audio();
 const world: PetalWorld = { w: 1, h: 1, groundY: 1, u: 2, scale: 1, sources: [], colors: [], faded: "#b08aa6" };
 const petals = new Petals(world, wind);
 const weatherFx = new WeatherFx();
-weatherFx.set(opts.weather);
+weatherFx.set(opts.weather, opts.rain);
 const rain = new Rain();
 const leaves = new SwayLayer(); // blossom clusters
 const curtain = new SwayLayer(); // weeping strands
@@ -193,7 +199,15 @@ function layout(): void {
 
 // --- controls --------------------------------------------------------------
 
-const toast = document.getElementById("toast")!;
+const $ = (id: string): HTMLElement => document.getElementById(id)!;
+const cap = (text: string): string => text[0].toUpperCase() + text.slice(1);
+let ambient = false;
+
+document.querySelectorAll<HTMLElement>("[data-icon]").forEach((el) => {
+  el.innerHTML = icon(el.dataset.icon!);
+});
+
+const toast = $("toast");
 let toastTimer = 0;
 function say(text: string): void {
   toast.textContent = text;
@@ -202,32 +216,25 @@ function say(text: string): void {
   toastTimer = window.setTimeout(() => toast.classList.remove("show"), 1400);
 }
 
-const hint = document.getElementById("hint")!;
+const hint = $("hint");
 const dismissHint = (): void => hint.classList.add("gone");
 window.setTimeout(dismissHint, 14000);
 
-const labels = {
-  style: document.getElementById("style-label")!,
-  palette: document.getElementById("palette-label")!,
-  detail: document.getElementById("detail-label")!,
-  sound: document.getElementById("sound-label")!,
-  wind: document.getElementById("wind-label")!,
-  weather: document.getElementById("weather-label")!,
-};
-const swatch = document.getElementById("swatch")!;
-const detailButton = document.getElementById("btn-detail")!;
-const soundButton = document.getElementById("btn-sound")!;
-const windButton = document.getElementById("btn-wind")!;
+const setSwitch = (id: string, on: boolean): void => $(id).setAttribute("aria-checked", String(on));
 
 function syncUi(): void {
-  labels.style.textContent = opts.style;
-  labels.palette.textContent = opts.palette;
-  labels.detail.textContent = opts.detail ? "on" : "off";
-  detailButton.setAttribute("aria-pressed", String(opts.detail));
-  labels.wind.textContent = opts.windOn ? "on" : "off";
-  windButton.setAttribute("aria-pressed", String(opts.windOn));
-  labels.weather.textContent = opts.weather;
-  swatch.style.background = css(ramp[3]);
+  $("style-label").textContent = cap(opts.style);
+  $("palette-label").textContent = cap(opts.palette);
+  $("swatch").style.background = css(ramp[3]);
+  $("weather-label").textContent = cap(opts.weather);
+  $("weather-icon").innerHTML = icon(WEATHER_ICON[opts.weather]);
+  $("fps-label").textContent = `${opts.fps} fps`;
+  $("petal-count").textContent = String(opts.density);
+  setSwitch("sw-detail", opts.detail);
+  setSwitch("sw-wind", opts.windOn);
+  setSwitch("sw-rain", opts.rain);
+  setSwitch("sw-sound", audio.enabled);
+  $("btn-ambient").classList.toggle("on", ambient);
 }
 
 function regrow(): void {
@@ -236,21 +243,52 @@ function regrow(): void {
   petals.scatter();
 }
 
-function cycleStyle(): void {
-  opts.style = STYLES[(STYLES.indexOf(opts.style) + 1) % STYLES.length];
+function setStyle(style: Style): void {
+  opts.style = style;
   save();
   syncUi();
   regrow();
 }
 
-function cyclePalette(step: number): void {
-  const i = PALETTE_NAMES.indexOf(opts.palette);
-  opts.palette = PALETTE_NAMES[(i + step + PALETTE_NAMES.length) % PALETTE_NAMES.length];
-  ramp = makeRamp(opts.palette);
+function setPalette(name: string): void {
+  opts.palette = name;
+  ramp = makeRamp(name);
   save();
   syncUi();
   grow(); // same seed: the same tree, new colours
-  say(opts.palette);
+}
+
+function cyclePalette(step: number): void {
+  const i = PALETTE_NAMES.indexOf(opts.palette);
+  setPalette(PALETTE_NAMES[(i + step + PALETTE_NAMES.length) % PALETTE_NAMES.length]);
+  say(cap(opts.palette));
+}
+
+function setWeather(weather: Weather): void {
+  opts.weather = weather;
+  weatherFx.set(opts.weather, opts.rain);
+  save();
+  syncUi();
+}
+
+function cycleWeather(step: number): void {
+  const i = WEATHERS.indexOf(opts.weather);
+  setWeather(WEATHERS[(i + step + WEATHERS.length) % WEATHERS.length]);
+  say(cap(opts.weather));
+}
+
+function toggleRain(): void {
+  opts.rain = !opts.rain;
+  weatherFx.set(opts.weather, opts.rain);
+  save();
+  syncUi();
+  say(opts.rain ? "Rain on" : "Rain off");
+}
+
+function setFps(fps: number): void {
+  opts.fps = fps;
+  save();
+  syncUi();
 }
 
 function toggleDetail(): void {
@@ -260,26 +298,16 @@ function toggleDetail(): void {
   layout();
 }
 
-function cycleWeather(step: number): void {
-  const i = WEATHERS.indexOf(opts.weather);
-  opts.weather = WEATHERS[(i + step + WEATHERS.length) % WEATHERS.length];
-  weatherFx.set(opts.weather);
-  save();
-  syncUi();
-  say(opts.weather);
-}
-
 function toggleSound(): void {
-  const on = audio.toggle();
-  labels.sound.textContent = on ? "on" : "off";
-  soundButton.setAttribute("aria-pressed", String(on));
+  audio.toggle();
+  syncUi();
 }
 
 function changeDensity(delta: number): void {
   opts.density = clamp(opts.density + delta, 1, 10);
   setPetalCount(innerWidth);
   save();
-  say(`petals ${opts.density}`);
+  syncUi();
 }
 
 function toggleWind(): void {
@@ -287,29 +315,116 @@ function toggleWind(): void {
   wind.enabled = opts.windOn;
   save();
   syncUi();
-  say(opts.windOn ? "wind on" : "wind off");
+  say(opts.windOn ? "Wind on" : "Wind off");
 }
 
 function changeWind(delta: number): void {
   opts.wind = clamp(opts.wind + delta, 0, 10);
   wind.level = opts.wind;
   save();
-  say(`wind ${opts.wind}`);
+  say(`Wind ${opts.wind}`);
 }
 
 const gust = (): void => {
-  if (!opts.windOn) say("wind is off");
+  if (!opts.windOn) say("Wind is off");
   wind.trigger();
   dismissHint();
 };
 
-document.getElementById("btn-style")!.addEventListener("click", cycleStyle);
-document.getElementById("btn-palette")!.addEventListener("click", () => cyclePalette(1));
-detailButton.addEventListener("click", toggleDetail);
-soundButton.addEventListener("click", toggleSound);
-windButton.addEventListener("click", toggleWind);
-document.getElementById("btn-weather")!.addEventListener("click", () => cycleWeather(1));
-document.getElementById("btn-hide")!.addEventListener("click", () => document.body.classList.toggle("ui-hidden"));
+function toggleUi(): void {
+  const hidden = document.body.classList.toggle("ui-hidden");
+  if (hidden) say("Press H to bring the controls back");
+}
+
+// Ambient mode: fullscreen, and the controls fade away when nothing moves.
+let idleTimer = 0;
+function wake(): void {
+  document.body.classList.remove("idle");
+  clearTimeout(idleTimer);
+  if (ambient) idleTimer = window.setTimeout(() => document.body.classList.add("idle"), 2400);
+}
+
+function setAmbient(on: boolean): void {
+  ambient = on;
+  if (on && !document.fullscreenElement) void document.documentElement.requestFullscreen?.().catch(() => undefined);
+  if (!on && document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+  syncUi();
+  wake();
+}
+
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement && ambient) setAmbient(false); // left with Esc
+});
+for (const type of ["pointermove", "pointerdown", "keydown"]) addEventListener(type, wake, { passive: true });
+
+// Dropdowns: a button with a menu beside it that opens upward.
+interface MenuItem {
+  label: string;
+  active: boolean;
+  swatch?: string;
+  pick: () => void;
+}
+
+function closeMenus(): void {
+  document.querySelectorAll<HTMLElement>(".menu").forEach((menu) => {
+    menu.hidden = true;
+    menu.previousElementSibling?.setAttribute("aria-expanded", "false");
+  });
+}
+
+function attachMenu(buttonId: string, items: () => MenuItem[]): void {
+  const button = $(buttonId);
+  const menu = button.nextElementSibling as HTMLElement;
+  button.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const wasOpen = !menu.hidden;
+    closeMenus();
+    if (wasOpen) return;
+    menu.replaceChildren(
+      ...items().map((item) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = `btn menu-item${item.active ? " on" : ""}`;
+        if (item.swatch) {
+          const dot = document.createElement("i");
+          dot.className = "swatch";
+          dot.style.background = item.swatch;
+          row.append(dot);
+        }
+        row.append(item.label);
+        const tick = document.createElement("span");
+        tick.className = "tick";
+        tick.innerHTML = icon("check");
+        row.append(tick);
+        row.addEventListener("click", () => {
+          item.pick();
+          closeMenus();
+        });
+        return row;
+      }),
+    );
+    menu.hidden = false;
+    button.setAttribute("aria-expanded", "true");
+  });
+}
+
+attachMenu("btn-fps", () => FPS_CHOICES.map((fps) => ({ label: `${fps} fps`, active: fps === opts.fps, pick: () => setFps(fps) })));
+attachMenu("btn-weather", () => WEATHERS.map((w) => ({ label: cap(w), active: w === opts.weather, pick: () => setWeather(w) })));
+attachMenu("btn-style", () => STYLES.map((st) => ({ label: cap(st), active: st === opts.style, pick: () => setStyle(st) })));
+attachMenu("btn-palette", () =>
+  PALETTE_NAMES.map((name) => ({ label: cap(name), active: name === opts.palette, swatch: css(makeRamp(name)[3]), pick: () => setPalette(name) })),
+);
+document.addEventListener("click", closeMenus);
+
+$("btn-ambient").addEventListener("click", () => setAmbient(!ambient));
+$("btn-hide").addEventListener("click", toggleUi);
+$("btn-gust").addEventListener("click", gust);
+$("petal-minus").addEventListener("click", () => changeDensity(-1));
+$("petal-plus").addEventListener("click", () => changeDensity(1));
+$("sw-detail").addEventListener("click", toggleDetail);
+$("sw-wind").addEventListener("click", toggleWind);
+$("sw-rain").addEventListener("click", toggleRain);
+$("sw-sound").addEventListener("click", toggleSound);
 
 addEventListener("keydown", (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -318,20 +433,23 @@ addEventListener("keydown", (e) => {
       e.preventDefault();
       gust();
       break;
+    case "Escape": closeMenus(); break;
+    case "f": case "F": setAmbient(!ambient); break;
+    case "h": case "H": toggleUi(); break;
     case "r": case "R": regrow(); break;
     case "c": cyclePalette(1); break;
     case "C": cyclePalette(-1); break;
-    case "s": case "S": cycleStyle(); break;
+    case "s": case "S": setStyle(STYLES[(STYLES.indexOf(opts.style) + 1) % STYLES.length]); break;
     case "d": case "D": toggleDetail(); break;
-    case "p": changeDensity(1); break;
-    case "P": changeDensity(-1); break;
+    case "p": case "+": case "=": changeDensity(1); break;
+    case "P": case "-": changeDensity(-1); break;
     case "a": case "A": toggleWind(); break;
-    case "e": cycleWeather(1); break;
-    case "E": cycleWeather(-1); break;
     case "w": changeWind(1); break;
     case "W": changeWind(-1); break;
+    case "e": cycleWeather(1); break;
+    case "E": cycleWeather(-1); break;
+    case "y": case "Y": toggleRain(); break;
     case "m": case "M": toggleSound(); break;
-    case "h": case "H": document.body.classList.toggle("ui-hidden"); break;
   }
 });
 
@@ -382,7 +500,6 @@ addEventListener("resize", () => {
 
 // --- frame loop ------------------------------------------------------------
 
-const FRAME = 1 / 62;
 let last = performance.now();
 let pending = 0;
 
@@ -390,7 +507,7 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
   pending += Math.min((now - last) / 1000, 0.1);
   last = now;
-  if (pending < FRAME) return; // cap at ~60fps on high refresh displays
+  if (pending < 1 / (opts.fps + 2)) return; // frame-rate cap (also tames high refresh displays)
   const dt = Math.min(pending, 1 / 20);
   pending = 0;
 
