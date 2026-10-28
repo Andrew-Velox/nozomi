@@ -10,9 +10,6 @@ Plain TypeScript and Canvas 2D, **no runtime dependencies**. The JavaScript is a
   <img src="docs/demo.webp" alt="A 33 second tour of Sakura: a cherry blossom tree with wind, clicks, three kinds of cherry, blossom colours, weather, rain and cell mode" width="100%">
 </p>
 
-<p align="center"><sub>A 33 second tour: wind and gusts, clicking the tree, the three kinds of cherry, blossom colours, weather and rain, and cell mode.
-<a href="docs/demo.mp4">Full-quality video (mp4, 1920 px)</a></sub></p>
-
 | Weeping cherry, moonlight and rain | Cell mode, sunset |
 | --- | --- |
 | ![A lavender weeping cherry in the rain](docs/preview-weeping-rain.jpg) | ![A peach bush cherry at sunset in the blocky cell style](docs/preview-cell-sunset.jpg) |
