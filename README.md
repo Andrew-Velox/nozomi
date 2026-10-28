@@ -3,7 +3,8 @@
 A calm, procedurally grown cherry blossom tree. Petals fall from the crown, drift on a wandering
 wind, settle in the grass and fade. The tree is different every time you regrow it.
 
-Plain TypeScript and Canvas 2D, **no runtime dependencies**, about 16 KB of JavaScript gzipped.
+Plain TypeScript and Canvas 2D, **no runtime dependencies**. The JavaScript is about 17 KB gzipped
+(15 KB with brotli), and the whole page, HTML and CSS included, is about 20 KB.
 
 <p align="center">
   <img src="docs/demo.webp" alt="A 33 second tour of Sakura: a cherry blossom tree with wind, clicks, three kinds of cherry, blossom colours, weather, rain and cell mode" width="100%">
