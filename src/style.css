@@ -247,9 +247,8 @@ kbd {
 /* the round button that brings the controls back */
 .fab {
   position: fixed;
-  left: 50%;
-  bottom: 18px;
-  translate: -50% 0;
+  right: 16px;
+  bottom: 16px;
   width: 48px;
   height: 48px;
   display: none;
@@ -261,8 +260,10 @@ kbd {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none; /* dragging it must not scroll or zoom the page */
 }
+.fab.dragging { cursor: grabbing; scale: 1.08; box-shadow: 0 14px 44px rgba(0, 0, 0, 0.6); }
 .fab .ic { width: 20px; height: 20px; }
 .fab:hover { background: rgba(32, 36, 40, 0.92); }
 .fab:focus-visible { outline: 2px solid #ffc2d4; outline-offset: 2px; }
@@ -307,7 +308,7 @@ body.idle #scene { cursor: none; }
   .btn, .item { height: 36px; padding: 0 10px; gap: 6px; }
   kbd, .hint { display: none; }
   .brand { top: 16px; left: 16px; }
-  .fab { bottom: 14px; }
+  .fab { right: 14px; bottom: 14px; }
 
   /* dropdowns open across the panel, above it */
   .menu-wrap { position: static; }

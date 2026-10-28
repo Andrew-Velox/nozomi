@@ -45,7 +45,8 @@ Node 20 or newer is recommended.
 
 Everything is in the bar at the bottom: Ambient, a live fps readout (click it to limit the frame rate), Minimise, a Gust button, dropdowns for
 weather, tree form and blossom colour, and switches for Detail, Wind, Rain and Sound. Minimise tucks
-the bar away into a round menu button; tap it to bring the bar back.
+the bar away into a round menu button in the bottom right corner; tap it to bring the bar back, or
+drag it anywhere you like (it remembers where).
 
 On a phone the controls start minimised so they never cover the tree. Tap the round button to open
 them as a panel across the bottom; it closes itself a few seconds after your last touch, and tapping

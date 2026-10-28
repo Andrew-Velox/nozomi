@@ -438,7 +438,79 @@ document.addEventListener("click", closeMenus);
 $("btn-ambient").addEventListener("click", () => setAmbient(!ambient));
 $("bar").addEventListener("pointerdown", armAutoMinimise);
 $("btn-collapse").addEventListener("click", () => setMinimised(true));
-$("btn-menu").addEventListener("click", () => setMinimised(false));
+// The menu button sits in the bottom right corner and can be dragged anywhere; it remembers where.
+const fab = $("btn-menu");
+const FAB_KEY = "sakura:fab";
+const FAB_MARGIN = 8;
+const FAB_SIZE = 48; // its width while hidden, when it cannot be measured
+let fabMoved = false; // a drag must not count as a tap
+
+function placeFab(fx: number, fy: number): void {
+  const room = (total: number, size: number): number => Math.max(0, total - size - FAB_MARGIN * 2);
+  fab.style.left = `${FAB_MARGIN + clamp(fx, 0, 1) * room(innerWidth, fab.offsetWidth || FAB_SIZE)}px`;
+  fab.style.top = `${FAB_MARGIN + clamp(fy, 0, 1) * room(innerHeight, fab.offsetHeight || FAB_SIZE)}px`;
+  fab.style.right = "auto";
+  fab.style.bottom = "auto";
+}
+
+function restoreFab(): void {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FAB_KEY) ?? "null");
+    if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) placeFab(saved.x, saved.y);
+  } catch {
+    // storage can be blocked: stay in the corner
+  }
+}
+
+fab.addEventListener("pointerdown", (e) => {
+  const start = { x: e.clientX, y: e.clientY };
+  const box = fab.getBoundingClientRect();
+  fab.setPointerCapture(e.pointerId);
+  fabMoved = false;
+
+  const move = (ev: PointerEvent): void => {
+    const dx = ev.clientX - start.x;
+    const dy = ev.clientY - start.y;
+    if (!fabMoved && Math.hypot(dx, dy) < 6) return; // still a tap
+    fabMoved = true;
+    fab.classList.add("dragging");
+    const roomX = Math.max(1, innerWidth - box.width - FAB_MARGIN * 2);
+    const roomY = Math.max(1, innerHeight - box.height - FAB_MARGIN * 2);
+    placeFab((box.left + dx - FAB_MARGIN) / roomX, (box.top + dy - FAB_MARGIN) / roomY);
+  };
+  const end = (): void => {
+    fab.removeEventListener("pointermove", move);
+    fab.removeEventListener("pointerup", end);
+    fab.removeEventListener("pointercancel", end);
+    fab.classList.remove("dragging");
+    if (!fabMoved) return;
+    const r = fab.getBoundingClientRect();
+    try {
+      localStorage.setItem(
+        FAB_KEY,
+        JSON.stringify({
+          x: (r.left - FAB_MARGIN) / Math.max(1, innerWidth - r.width - FAB_MARGIN * 2),
+          y: (r.top - FAB_MARGIN) / Math.max(1, innerHeight - r.height - FAB_MARGIN * 2),
+        }),
+      );
+    } catch {
+      // ignore
+    }
+  };
+  fab.addEventListener("pointermove", move);
+  fab.addEventListener("pointerup", end);
+  fab.addEventListener("pointercancel", end);
+});
+
+fab.addEventListener("click", () => {
+  if (fabMoved) {
+    fabMoved = false; // that was the end of a drag, not a tap
+    return;
+  }
+  setMinimised(false);
+});
+addEventListener("resize", restoreFab);
+restoreFab();
 $("btn-gust").addEventListener("click", gust);
 $("sw-detail").addEventListener("click", toggleDetail);
 $("sw-wind").addEventListener("click", toggleWind);
