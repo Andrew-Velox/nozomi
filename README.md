@@ -24,7 +24,7 @@ Plain TypeScript and Canvas 2D, **no runtime dependencies**, about 16 KB of Java
   that works on top of any of them. The tree and grass stay crisp in every weather.
 - **12 blossom colours,** from sakura pink to lavender, mint and gold.
 - **Ambient mode** for use as a wallpaper: fullscreen, with the controls fading away when idle, and a
-  frame-rate cap (24 / 30 / 45 / 60) to keep it light.
+  frame-rate limit (24 / 30 / 45 / 60, with a live fps readout) to keep it light.
 - **Synthesised sound** (wind, rain and a soft chime on click). No audio files, and nothing loads
   until you switch it on.
 - **Works on a phone.** The controls collapse into a round menu button and open as a bottom panel.
@@ -43,7 +43,7 @@ Node 20 or newer is recommended.
 
 ## Controls
 
-Everything is in the bar at the bottom: Ambient, an fps menu, Minimise, a Gust button, dropdowns for
+Everything is in the bar at the bottom: Ambient, a live fps readout (click it to limit the frame rate), Minimise, a Gust button, dropdowns for
 weather, tree form and blossom colour, and switches for Detail, Wind, Rain and Sound. Minimise tucks
 the bar away into a round menu button; tap it to bring the bar back.
 

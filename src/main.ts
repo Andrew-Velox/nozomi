@@ -228,7 +228,6 @@ function syncUi(): void {
   $("swatch").style.background = css(ramp[3]);
   $("weather-label").textContent = cap(opts.weather);
   $("weather-icon").innerHTML = icon(WEATHER_ICON[opts.weather]);
-  $("fps-label").textContent = `${opts.fps} fps`;
   setSwitch("sw-detail", opts.detail);
   setSwitch("sw-wind", opts.windOn);
   setSwitch("sw-rain", opts.rain);
@@ -428,7 +427,7 @@ function attachMenu(buttonId: string, items: () => MenuItem[]): void {
   });
 }
 
-attachMenu("btn-fps", () => FPS_CHOICES.map((fps) => ({ label: `${fps} fps`, active: fps === opts.fps, pick: () => setFps(fps) })));
+attachMenu("btn-fps", () => FPS_CHOICES.map((fps) => ({ label: `Limit to ${fps} fps`, active: fps === opts.fps, pick: () => setFps(fps) })));
 attachMenu("btn-weather", () => WEATHERS.map((w) => ({ label: cap(w), active: w === opts.weather, pick: () => setWeather(w) })));
 attachMenu("btn-style", () => STYLES.map((st) => ({ label: cap(st), active: st === opts.style, pick: () => setStyle(st) })));
 attachMenu("btn-palette", () =>
@@ -520,6 +519,16 @@ addEventListener("resize", () => {
 
 // --- frame loop ------------------------------------------------------------
 
+// The fps button shows the frame rate you are really getting; its menu sets the limit.
+let frames = 0;
+let fpsSince = performance.now();
+window.setInterval(() => {
+  const now = performance.now();
+  if (!document.hidden && frames > 0) $("fps-label").textContent = `${Math.round((frames * 1000) / (now - fpsSince))} fps`;
+  frames = 0;
+  fpsSince = now;
+}, 500);
+
 let last = performance.now();
 let pending = 0;
 
@@ -553,6 +562,7 @@ function frame(now: number): void {
   curtain.draw(ctx, now / 1000, wind);
   petals.draw(ctx);
   rain.draw(ctx, wind, look.rain);
+  frames++;
 }
 
 setMinimised(minimised);
