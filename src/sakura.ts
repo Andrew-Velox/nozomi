@@ -541,5 +541,7 @@ export class Sakura {
 
 /** Grow a cherry blossom tree inside `container` (an element or a CSS selector). */
 export function createSakura(container: HTMLElement | string, options?: SakuraCreateOptions): Sakura {
+  // checked here, before the class builds its canvases, so a server gets this message and not "document is not defined"
+  if (typeof document === "undefined") throw new Error("Sakura needs a browser: call createSakura() on the client, for example inside an effect or onMount.");
   return new Sakura(container, options);
 }
