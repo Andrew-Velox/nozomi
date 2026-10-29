@@ -201,7 +201,8 @@ interface Crown {
   ry: number; // for light across the whole crown, not just across each pad
 }
 
-export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
+/** `wild` is for the Random option: the trunk's whole path is invented afresh, with its own bends, coils and twist. */
+export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): BonsaiResult {
   const { grid, foliage, ramp, rng } = env;
   const W = grid.w;
   const H = grid.h;
@@ -436,13 +437,17 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   };
 
   // A trunk with its branches: grows the wood and adds the foliage pads it carries.
-  const grow = (o: { ctrl: Point[]; limb: Limb; treeH: number; trunkR: number; leanDir: number; main: boolean; padMul?: number; skipTrunk?: boolean }): { trunk: Point[]; trunkAt: (u: number) => Point; radiusAt: (u: number) => number } => {
+  const grow = (o: { ctrl: Point[]; limb: Limb; treeH: number; trunkR: number; leanDir: number; main: boolean; padMul?: number; skipTrunk?: boolean; twist?: number }): { trunk: Point[]; trunkAt: (u: number) => Point; radiusAt: (u: number) => number } => {
     const { limb, treeH: tH, trunkR, leanDir } = o;
     const trunk = spline(o.ctrl, 90);
     const radiusAt = (u: number): number => Math.max(0.8, trunkR * (1 - limb.taper * Math.pow(u, 0.6)) * (1 + 0.5 * Math.exp(-u * 22)));
     const trunkAt = (u: number): Point => trunk[clamp(Math.round(u * (trunk.length - 1)), 0, trunk.length - 1)];
     if (o.main) surfaceRoots(trunkR, 5 + Math.floor(rng() * 3), 1);
-    if (!o.skipTrunk) stroke(trunk, radiusAt, { vertical: true, clipBase: true, moss: 0.4, mossUntil: 0.07, rough: 0.3, shari: limb.shari && o.main ? { from: rand(0.06, 0.16), to: rand(0.45, 0.6), side: -leanDir } : undefined });
+    const shari = limb.shari && o.main ? { from: rand(0.06, 0.16), to: rand(0.45, 0.6), side: -leanDir } : undefined;
+    if (!o.skipTrunk) {
+      if (o.twist && o.twist > 0) ropeStroke(trunk, radiusAt, o.twist, { vertical: true, clipBase: true, moss: 0.35, mossUntil: 0.08, rough: 0.9 }, { vertical: true, rough: 0.5, shari });
+      else stroke(trunk, radiusAt, { vertical: true, clipBase: true, moss: 0.4, mossUntil: 0.07, rough: 0.3, shari });
+    }
 
     const crownR = tH * limb.reach;
     const cone = limb.cone ?? 0.74;
@@ -488,9 +493,63 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     return { trunk, trunkAt, radiusAt };
   };
 
-  // The control points of a trunk, mirrored to the side the tree leans.
+  // Every tree gets its own wobble on top of its style: a random extra S-curve along the trunk, and a random stretch of the
+  // sideways swing, so two trees of one style never twist alike. A wild tree gets far more.
+  const swing = wild ? rand(0.6, 1.8) : rand(0.8, 1.3);
+  const waveA = wild ? rand(0.04, 0.13) : rand(0, 0.055);
+  const waveF = rand(1.3, 3.6);
+  const waveP = rand(0, Math.PI * 2);
   const ctrlOf = (path: [number, number][], tH: number, from: Point = base, mirror = dir): Point[] =>
-    path.map(([dx, up]) => [from[0] + mirror * dx * tH + (dx === 0 && up === 0 ? 0 : rand(-0.004, 0.004) * tH), from[1] - up * tH * 0.88]);
+    path.map(([dx, up]) => {
+      const w = waveA * Math.sin(waveP + up * Math.PI * waveF) * Math.max(0, up * (1 - up) * 4);
+      return [from[0] + mirror * (dx * swing + w) * tH + (dx === 0 && up === 0 ? 0 : rand(-0.004, 0.004) * tH), from[1] - up * tH * 0.88];
+    });
+
+  // An invented trunk: any number of bends, a lean, and now and then a low loop like a knot of rope.
+  const randomPath = (): [number, number][] => {
+    const n = 5 + Math.floor(rng() * 4);
+    const lean = rand(-0.28, 0.32);
+    const amp = rand(0.04, 0.17);
+    const f = rand(1.1, 3.4);
+    const ph = rand(0, Math.PI * 2);
+    const pts: [number, number][] = [[0, 0]];
+    const coil = rng() < 0.4;
+    const lift = coil ? 0.2 : 0;
+    if (coil) {
+      const reach = rand(0.14, 0.3);
+      pts.push([reach * 0.5, 0.03], [reach, 0.07], [reach * 1.2, 0.13], [reach * 0.8, 0.19], [reach * 0.4, 0.2]);
+    }
+    const x0 = coil ? pts[pts.length - 1][0] : 0;
+    for (let i = 1; i <= n; i++) {
+      const t = i / n;
+      const up = lift + t * (0.98 - lift);
+      const x = x0 + lean * t * t + amp * (Math.sin(ph + t * Math.PI * f) * (0.35 + 0.65 * t) - Math.sin(ph) * 0.35);
+      pts.push([x, up]);
+    }
+    return pts;
+  };
+
+  // A trunk plaited from three strands, each weaving in front of and behind the others, over the first `frac` of its length.
+  const ropeStroke = (trunk: Point[], radiusAt: (u: number) => number, frac: number, ropeBrush: Brush, restBrush: Brush): void => {
+    const end = clamp(Math.round(trunk.length * frac), 3, trunk.length);
+    for (let i = 0; i < end; i++) {
+      const u = i / (trunk.length - 1);
+      const r = radiusAt(u);
+      const [x, y] = trunk[i];
+      const [xa, ya] = trunk[Math.max(0, i - 1)];
+      const [xb, yb] = trunk[Math.min(trunk.length - 1, i + 1)];
+      const L = Math.hypot(xb - xa, yb - ya) || 1;
+      const nx = -(yb - ya) / L;
+      const ny = (xb - xa) / L;
+      const strands = [0, 1, 2].map((k) => {
+        const a = i * 0.34 + k * 2.094;
+        return { off: Math.sin(a) * r * 0.5, depth: Math.cos(a) };
+      });
+      strands.sort((a, b) => a.depth - b.depth);
+      for (const st of strands) stamp(x + nx * st.off, y + ny * st.off, Math.max(r * 0.58, 0.9), u, ropeBrush);
+    }
+    if (end < trunk.length - 3) stroke(trunk.slice(end - 2), (u) => radiusAt(lerp((end - 2) / (trunk.length - 1), 1, u)), restBrush);
+  };
 
   // A tree that pours down a rock: pads hang along the fall.
   const cascadePads = (trunkAt: (u: number) => Point, from: number, to: number, count: number, size: number, tH: number): void => {
@@ -508,7 +567,9 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   const limb = style.limb;
 
   if (limb && form !== "sokan") {
-    grow({ ctrl: ctrlOf(limb.path, treeH), limb, treeH, trunkR: Math.max(1.6, treeH * limb.trunk), leanDir: dir, main: true });
+    // some trees are plaited into a rope along part or all of their trunk; a wild one more often
+    const twist = rng() < (wild ? 0.65 : 0.22) ? rand(0.3, wild ? 1 : 0.7) : 0;
+    grow({ ctrl: ctrlOf(wild ? randomPath() : limb.path, treeH), limb, treeH, trunkR: Math.max(1.6, treeH * limb.trunk * (twist ? 1.2 : 1)), leanDir: dir, main: true, twist });
   } else if (form === "sokan" && limb) {
     // two trunks from one root: the second is shorter and leans the other way
     const tr = Math.max(1.6, treeH * limb.trunk);
@@ -616,8 +677,8 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     // S into a leaning crown of tiers. One long branch swings out and falls past the edge of the rock.
     const tH = treeH;
     const trunkR = Math.max(3, tH * 0.062);
-    const j = (): number => rand(-0.02, 0.02);
-    const back = rand(0.6, 1.1); // how far the loop curls back
+    const j = (): number => rand(-0.035, 0.035);
+    const back = rand(0.5, 1.25); // how far the loop curls back
     const path: [number, number][] = [
       [0, 0], [0.1 + j(), 0.03], [0.22 + j(), 0.05], [0.34 + j(), 0.08], [0.43 + j(), 0.14], [0.37 * back + j(), 0.21], [0.29 * back + j(), 0.2],
       [0.35 + j(), 0.3], [0.47 + j(), 0.4], [0.43 + j(), 0.52], [0.51 + j(), 0.65], [0.48 + j(), 0.79], [0.53 + j(), 0.92],
@@ -626,24 +687,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     const radiusAt = (u: number): number => Math.max(1.1, trunkR * (1 - 0.6 * Math.pow(u, 0.6)) * (1 + 0.45 * Math.exp(-u * 18)));
     const brush = { vertical: true, clipBase: true, moss: 0.35, mossUntil: 0.08, rough: 0.9 } as const;
     // the lower trunk is plaited from three strands, each weaving in front of and behind the others
-    const ropeEnd = Math.round(trunk.length * 0.42);
-    for (let i = 0; i < ropeEnd; i++) {
-      const u = i / (trunk.length - 1);
-      const r = radiusAt(u);
-      const [x, y] = trunk[i];
-      const [xa, ya] = trunk[Math.max(0, i - 1)];
-      const [xb, yb] = trunk[Math.min(trunk.length - 1, i + 1)];
-      const L = Math.hypot(xb - xa, yb - ya) || 1;
-      const nx = -(yb - ya) / L;
-      const ny = (xb - xa) / L;
-      const strands = [0, 1, 2].map((k) => {
-        const a = i * 0.34 + k * 2.094;
-        return { off: Math.sin(a) * r * 0.5, depth: Math.cos(a) };
-      });
-      strands.sort((a, b) => a.depth - b.depth);
-      for (const st of strands) stamp(x + nx * st.off, y + ny * st.off, Math.max(r * 0.58, 0.9), u, brush);
-    }
-    stroke(trunk.slice(ropeEnd - 2), (u) => radiusAt(lerp(ropeEnd / (trunk.length - 1), 1, u)), { vertical: true, rough: 0.5, shari: { from: 0.1, to: 0.45, side: -dir } });
+    ropeStroke(trunk, radiusAt, rand(0.36, wild ? 0.9 : 0.55), brush, { vertical: true, rough: 0.5, shari: { from: 0.1, to: 0.45, side: -dir } });
     surfaceRoots(trunkR, 5, 1);
     // the crown: tiers of pads up the S, leaning like the trunk
     const crownLimb: Limb = {

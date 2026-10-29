@@ -440,7 +440,7 @@ export class Sakura {
     this.treeCtx.clearRect(0, 0, w, h);
     if (this.opts.tree === "bonsai") {
       const style = this.opts.form === "random" ? BONSAI_STYLES[Math.floor(rng() * BONSAI_STYLES.length)] : (this.opts.form as BonsaiForm);
-      const grown = growBonsai({ grid, foliage, ramp, rng }, style);
+      const grown = growBonsai({ grid, foliage, ramp, rng }, style, this.opts.form === "random");
       sources = grown.sources;
       groundRow = grown.groundRow;
     } else {
