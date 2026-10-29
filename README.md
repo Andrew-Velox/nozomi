@@ -20,13 +20,13 @@ Plain TypeScript and Canvas 2D, **no runtime dependencies**. The whole app is ab
 
 - **Two looks.** *Cell mode* is blocky, in the style of a terminal. *Detail mode* is a fully
   branched pixel tree whose limbs fork and taper into twigs.
-- **Two trees.** A cherry in blossom, and a **bonsai**: a potted tree with a gnarled trunk, layered
-  pads of leaves, moss, and a glazed pot on a wooden table. Switch between them with the Tree
+- **Two trees.** A cherry in blossom, and a **bonsai**: a tree with a gnarled trunk and layered
+  pads of leaves, growing from a mossy rock on grassy ground, with boulders and wild flowers. Switch between them with the Tree
   button or `t`. The wind, weather, rain, falling leaves and click ripples work the same on both.
-- **Ten bonsai styles,** each with its own trunk, branching, pot and crown: moyogi (S-curved),
+- **Ten bonsai styles,** each with its own trunk, branching, rock and crown: moyogi (S-curved),
   chokkan (formal upright, in tiers), shakan (slanting), fukinagashi (windswept), sokan (twin trunk),
-  hokidachi (a broom: a straight trunk under a round crown), ishitsuki (on a slab of stone, roots
-  gripping it), hankengai (semi-cascade), kengai (cascade over a tall pot) and bunjin (tall, thin,
+  hokidachi (a broom: a straight trunk under a round crown), ishitsuki (on a flat slab of stone, roots
+  gripping it), hankengai (semi-cascade), kengai (cascade down a tall rock) and bunjin (tall, thin,
   bare), or a random one.
 - **Three kinds of cherry:** yoshino (spreading), bush (a full, rounded cloud) and shidare
   (weeping), or a random one on every regrow. No two trees are alike.
@@ -93,7 +93,7 @@ Every option is optional.
 
 | Option | Default | What it does |
 | --- | --- | --- |
-| `tree` | `"sakura"` | `"sakura"` (a cherry in blossom) or `"bonsai"` (a potted tree on a table). Switching grows a new tree, with that tree's own colour and form unless you pass them too. |
+| `tree` | `"sakura"` | `"sakura"` (a cherry in blossom) or `"bonsai"` (a tree on a mossy rock). Switching grows a new tree, with that tree's own colour and form unless you pass them too. |
 | `palette` | `"sakura"` (`"pine"` for the bonsai) | Blossom or leaf colour: `sakura` `blush` `rose` `peach` `coral` `gold` `lavender` `violet` `sky` `mint` `matcha` `white` `pine` `juniper` `maple` `autumn`. |
 | `form` | `"yoshino"` (`"moyogi"` for the bonsai) | The cherry: `yoshino`, `bush`, `shidare` (weeping) or `random`. The bonsai: `moyogi`, `chokkan`, `shakan`, `fukinagashi`, `sokan`, `hokidachi`, `ishitsuki`, `hankengai`, `kengai`, `bunjin` or `random`. Changing it grows a new tree. |
 | `detail` | `false` | `true` for the finely branched pixel tree, `false` for the blocky cell style. (The bonsai is always drawn finely.) |
@@ -189,7 +189,7 @@ Everything is rule-based; nothing is a recorded animation.
 | --- | --- |
 | `src/tree.ts` | Cell mode. A trunk of tapered slices, limbs drawn as curves, then a canopy grown from a field of blobs at the limb tips, broken into clumps with value noise, shaded from the upper left and dotted with blossoms. Each form draws its proportions, lean and limbs from ranges. |
 | `src/treehd.ts` | Detail mode. Branches grown by *space colonisation* (attraction points fill the crown and the tree grows toward them), thickness from a pipe model, blossom as layered bundles. |
-| `src/bonsai.ts` | The bonsai. The trunk is drawn along a designed curve for each style (a Catmull-Rom spline through hand-set points); a few styles build their crowns differently: a fan of limbs under one round dome (hokidachi), a broad dome of packed pads over a twisting trunk on a stone slab (ishitsuki), pads hanging down a trunk that falls over the pot (kengai), thick at the roots and tapering, lit from the upper left with bark streaks and a strip of bleached deadwood. Branches arch out in a cone, each carrying flat pads of foliage built from scalloped lobes, shaded top to bottom, with the pad behind darkened where a lower one overlaps it. Then the pot, soil, moss, stones, table and (for the cascade) a stand. |
+| `src/bonsai.ts` | The bonsai. The trunk is drawn along a designed curve for each style (a Catmull-Rom spline through hand-set points); a few styles build their crowns differently: a fan of limbs under one round dome (hokidachi), a broad dome of packed pads over a twisting trunk on a stone slab (ishitsuki), pads hanging down a trunk that falls down a tall rock (kengai), thick at the roots and tapering, lit from the upper left with bark streaks and a strip of bleached deadwood. Branches arch out in a cone, each carrying flat pads of foliage built from scalloped lobes, shaded top to bottom, with the pad behind darkened where a lower one overlaps it. Then the ground: a layered, mossy rock that is low and broad, flat and slab-like or a tall pillar for the cascade, with grass drooping over it, small boulders, flowers, and grass and earth right across the bottom. |
 | `src/grid.ts`, `src/render.ts` | The tree is a grid of cells painted once onto a transparent canvas. Cells on the outline fade into whatever sky is behind them. |
 | `src/petals.ts`, `src/wind.ts` | Petals fall from the blossom with sway and tumble, catch a wandering wind plus gusts, lie on the ground for a few seconds and fade. |
 | `src/sway.ts` | The moving parts of the tree live on their own layers: the blossom clusters (random local ripples) and the hanging strands (a wave that travels down each one). Each frame a layer is drawn a band of rows at a time, every column shifted sideways by its own amount. |

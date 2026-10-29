@@ -111,7 +111,7 @@ const setSwitch = (id: string, on: boolean): void => $(id).setAttribute("aria-ch
 
 const TREE_TEXT: Record<TreeOption, { kanji: string; name: string; alt: string; palette: string; leaves: string }> = {
   sakura: { kanji: "桜", name: "Sakura", alt: "A cherry blossom tree with petals falling around it", palette: "Blossom colour", leaves: "Petals" },
-  bonsai: { kanji: "盆栽", name: "Bonsai", alt: "A bonsai tree in a pot on a wooden table, with leaves falling", palette: "Leaf colour", leaves: "Leaves" },
+  bonsai: { kanji: "盆栽", name: "Bonsai", alt: "A bonsai tree growing from a mossy rock on grassy ground, with leaves falling", palette: "Leaf colour", leaves: "Leaves" },
 };
 
 function syncUi(): void {

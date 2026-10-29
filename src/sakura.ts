@@ -35,7 +35,7 @@ export const TREE_DEFAULTS: Readonly<Record<TreeOption, { form: FormOption; pale
 
 /** Everything you can set. Every field is optional; what you leave out keeps its default. */
 export interface SakuraOptions {
-  /** Which tree: `"sakura"` (a cherry in blossom) or `"bonsai"` (a potted tree on a table). Default `"sakura"`. */
+  /** Which tree: `"sakura"` (a cherry in blossom) or `"bonsai"` (a tree growing from a mossy rock). Default `"sakura"`. */
   tree?: TreeOption;
   /** Blossom or leaf colour. Default `"sakura"` for the cherry, `"pine"` for the bonsai. See `PALETTES`. */
   palette?: PaletteName;
