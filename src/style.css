@@ -111,6 +111,8 @@ html, body {
 }
 .bar button:focus-visible { outline: 2px solid #ffc2d4; outline-offset: 1px; }
 
+.bar [hidden] { display: none !important; }
+
 .ic { width: 16px; height: 16px; flex: none; display: block; }
 .bar [data-icon], #weather-icon { display: inline-flex; }
 

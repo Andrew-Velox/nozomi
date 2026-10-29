@@ -29,10 +29,10 @@
       </span>
     </a>
 
-    <header class="brand"><span class="kanji">桜</span> Sakura</header>
+    <header class="brand"><span class="kanji" id="brand-kanji">桜</span> <span id="brand-name">Sakura</span></header>
 
     <p class="hint" id="hint">
-      click the tree to shake it <i>·</i> <kbd>r</kbd> regrow <i>·</i> <kbd>w</kbd> wind strength
+      click the tree to shake it <i>·</i> <kbd>r</kbd> regrow <i>·</i> <kbd>t</kbd> sakura / bonsai <i>·</i> <kbd>w</kbd> wind strength
       <i>·</i> <kbd>e</kbd> weather <i>·</i> <kbd>y</kbd> rain <i>·</i> move to the bottom edge for the controls
     </p>
 
@@ -68,7 +68,14 @@
       </div>
 
       <div class="menu-wrap">
-        <button class="btn" id="btn-style" type="button" title="Tree form (S)" aria-haspopup="true" aria-expanded="false">
+        <button class="btn" id="btn-tree" type="button" title="Which tree: sakura or bonsai (T)" aria-haspopup="true" aria-expanded="false">
+          <span id="tree-icon"></span><span class="lbl" id="tree-label">Sakura</span>
+        </button>
+        <div class="menu" hidden></div>
+      </div>
+
+      <div class="menu-wrap">
+        <button class="btn" id="btn-style" type="button" title="Tree style (S)" aria-haspopup="true" aria-expanded="false">
           <span data-icon="leaf"></span><span class="lbl" id="style-label">Yoshino</span>
         </button>
         <div class="menu" hidden></div>

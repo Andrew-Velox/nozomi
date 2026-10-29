@@ -1,7 +1,7 @@
 import "./style.css";
 import { css } from "./color";
 import { icon, WEATHER_ICON } from "./icons";
-import { createSakura, FORMS, PALETTES, WEATHERS, type FormOption, type Weather } from "./index";
+import { createSakura, FORMS_OF, PALETTES, TREE_DEFAULTS, TREES, WEATHERS, type FormOption, type TreeOption, type Weather } from "./index";
 import { makeRamp } from "./palettes";
 
 // The app is the control bar, the keyboard and a saved settings object around one Sakura scene.
@@ -11,8 +11,11 @@ const STORAGE_KEY = "sakura:v2";
 const FPS_CHOICES = [24, 30, 45, 60];
 
 interface Options {
-  palette: string;
-  style: FormOption;
+  tree: TreeOption;
+  palette: string; // the cherry's blossom colour
+  style: FormOption; // the cherry's form
+  bonsaiPalette: string; // the bonsai's leaf colour
+  bonsaiStyle: FormOption; // the bonsai's style
   detail: boolean;
   density: number; // 1..10
   wind: number; // 0..10
@@ -26,12 +29,15 @@ const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const clamp = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
 
 function loadOptions(): Options {
-  const fallback: Options = { palette: "sakura", style: "yoshino", detail: false, density: reducedMotion ? 2 : 5, wind: 3, windOn: true, weather: "clear", rain: false, fps: 60 };
+  const fallback: Options = { tree: "sakura", palette: "sakura", style: "yoshino", bonsaiPalette: TREE_DEFAULTS.bonsai.palette, bonsaiStyle: TREE_DEFAULTS.bonsai.form, detail: false, density: reducedMotion ? 2 : 5, wind: 3, windOn: true, weather: "clear", rain: false, fps: 60 };
   try {
     const o = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
     return {
+      tree: (TREES as readonly string[]).includes(o.tree) ? o.tree : fallback.tree,
       palette: (PALETTES as readonly string[]).includes(o.palette) ? o.palette : fallback.palette,
-      style: (FORMS as readonly string[]).includes(o.style) ? o.style : fallback.style,
+      style: FORMS_OF.sakura.includes(o.style) ? o.style : fallback.style,
+      bonsaiPalette: (PALETTES as readonly string[]).includes(o.bonsaiPalette) ? o.bonsaiPalette : fallback.bonsaiPalette,
+      bonsaiStyle: FORMS_OF.bonsai.includes(o.bonsaiStyle) ? o.bonsaiStyle : fallback.bonsaiStyle,
       detail: !!o.detail,
       density: clamp(Number(o.density) || fallback.density, 1, 10),
       wind: clamp(Number.isFinite(Number(o.wind)) ? Number(o.wind) : fallback.wind, 0, 10),
@@ -56,9 +62,17 @@ function save(): void {
 
 const $ = (id: string): HTMLElement => document.getElementById(id)!;
 
+// Each tree remembers its own colour and style, so switching back finds the other one as you left it.
+const curPalette = (): string => (opts.tree === "bonsai" ? opts.bonsaiPalette : opts.palette);
+const curStyle = (): FormOption => (opts.tree === "bonsai" ? opts.bonsaiStyle : opts.style);
+const LEAF_FIRST = ["pine", "juniper", "matcha", "mint", "maple", "autumn", "gold"];
+const palettesFor = (tree: TreeOption): readonly (typeof PALETTES)[number][] =>
+  tree === "bonsai" ? [...LEAF_FIRST, ...PALETTES.filter((n) => !LEAF_FIRST.includes(n))] as (typeof PALETTES)[number][] : PALETTES;
+
 const sakura = createSakura($("stage"), {
-  palette: opts.palette as (typeof PALETTES)[number],
-  form: opts.style,
+  tree: opts.tree,
+  palette: curPalette() as (typeof PALETTES)[number],
+  form: curStyle(),
   detail: opts.detail,
   petals: opts.density,
   wind: opts.windOn ? opts.wind : false,
@@ -67,6 +81,9 @@ const sakura = createSakura($("stage"), {
   fps: opts.fps,
   touchAction: "none", // a finger sweeps petals instead of scrolling the page
 });
+
+// a handle for poking at the scene from the console while developing (not in the built app)
+if (import.meta.env.DEV) (window as unknown as { sakura: typeof sakura }).sakura = sakura;
 
 // --- controls --------------------------------------------------------------
 
@@ -92,10 +109,24 @@ window.setTimeout(dismissHint, 14000);
 
 const setSwitch = (id: string, on: boolean): void => $(id).setAttribute("aria-checked", String(on));
 
+const TREE_TEXT: Record<TreeOption, { kanji: string; name: string; alt: string; palette: string; leaves: string }> = {
+  sakura: { kanji: "桜", name: "Sakura", alt: "A cherry blossom tree with petals falling around it", palette: "Blossom colour", leaves: "Petals" },
+  bonsai: { kanji: "盆栽", name: "Bonsai", alt: "A bonsai tree in a pot on a wooden table, with leaves falling", palette: "Leaf colour", leaves: "Leaves" },
+};
+
 function syncUi(): void {
-  $("style-label").textContent = cap(opts.style);
-  $("palette-label").textContent = cap(opts.palette);
-  $("swatch").style.background = css(makeRamp(opts.palette)[3]);
+  const text = TREE_TEXT[opts.tree];
+  $("tree-label").textContent = text.name;
+  $("tree-icon").innerHTML = icon(opts.tree === "bonsai" ? "bonsai" : "flower");
+  $("brand-kanji").textContent = text.kanji;
+  $("brand-name").textContent = text.name;
+  $("stage").setAttribute("aria-label", text.alt);
+  $("btn-palette").title = `${text.palette} (C)`;
+  document.title = text.name;
+  $("sw-detail").hidden = opts.tree === "bonsai"; // the bonsai is always drawn in fine pixels
+  $("style-label").textContent = cap(curStyle());
+  $("palette-label").textContent = cap(curPalette());
+  $("swatch").style.background = css(makeRamp(curPalette())[3]);
   $("weather-label").textContent = cap(opts.weather);
   $("weather-icon").innerHTML = icon(WEATHER_ICON[opts.weather]);
   setSwitch("sw-detail", opts.detail);
@@ -109,24 +140,41 @@ function regrow(): void {
   sakura.regrow();
 }
 
+function setTree(tree: TreeOption): void {
+  if (tree === opts.tree) return;
+  opts.tree = tree;
+  save();
+  syncUi();
+  sakura.set({ tree, palette: curPalette() as (typeof PALETTES)[number], form: curStyle() }); // a new tree, in the colours and style it had
+  say(TREE_TEXT[tree].name);
+}
+
 function setStyle(style: FormOption): void {
-  opts.style = style;
+  if (opts.tree === "bonsai") opts.bonsaiStyle = style;
+  else opts.style = style;
   save();
   syncUi();
   sakura.set({ form: style }); // a new tree
 }
 
+function cycleStyle(): void {
+  const forms = FORMS_OF[opts.tree];
+  setStyle(forms[(forms.indexOf(curStyle()) + 1) % forms.length] as FormOption);
+}
+
 function setPalette(name: string): void {
-  opts.palette = name;
+  if (opts.tree === "bonsai") opts.bonsaiPalette = name;
+  else opts.palette = name;
   save();
   syncUi();
   sakura.set({ palette: name as (typeof PALETTES)[number] }); // the same tree in new colours
 }
 
 function cyclePalette(step: number): void {
-  const i = PALETTES.indexOf(opts.palette as (typeof PALETTES)[number]);
-  setPalette(PALETTES[(i + step + PALETTES.length) % PALETTES.length]);
-  say(cap(opts.palette));
+  const list = palettesFor(opts.tree);
+  const i = list.indexOf(curPalette() as (typeof PALETTES)[number]);
+  setPalette(list[(i + step + list.length) % list.length]);
+  say(cap(curPalette()));
 }
 
 function setWeather(weather: Weather): void {
@@ -173,7 +221,7 @@ function changeDensity(delta: number): void {
   opts.density = clamp(opts.density + delta, 1, 10);
   sakura.set({ petals: opts.density });
   save();
-  say(`Petals ${opts.density}`);
+  say(`${TREE_TEXT[opts.tree].leaves} ${opts.density}`);
 }
 
 function toggleWind(): void {
@@ -347,9 +395,10 @@ function attachMenu(buttonId: string, items: () => MenuItem[]): void {
 
 attachMenu("btn-fps", () => FPS_CHOICES.map((fps) => ({ label: `Limit to ${fps} fps`, active: fps === opts.fps, pick: () => setFps(fps) })));
 attachMenu("btn-weather", () => WEATHERS.map((w) => ({ label: cap(w), active: w === opts.weather, pick: () => setWeather(w) })));
-attachMenu("btn-style", () => FORMS.map((st) => ({ label: cap(st), active: st === opts.style, pick: () => setStyle(st) })));
+attachMenu("btn-tree", () => TREES.map((tree) => ({ label: TREE_TEXT[tree].name, active: tree === opts.tree, pick: () => setTree(tree) })));
+attachMenu("btn-style", () => FORMS_OF[opts.tree].map((st) => ({ label: cap(st), active: st === curStyle(), pick: () => setStyle(st as FormOption) })));
 attachMenu("btn-palette", () =>
-  PALETTES.map((name) => ({ label: cap(name), active: name === opts.palette, swatch: css(makeRamp(name)[3]), pick: () => setPalette(name) })),
+  palettesFor(opts.tree).map((name) => ({ label: cap(name), active: name === curPalette(), swatch: css(makeRamp(name)[3]), pick: () => setPalette(name) })),
 );
 document.addEventListener("click", closeMenus);
 
@@ -447,8 +496,9 @@ addEventListener("keydown", (e) => {
     case "r": case "R": regrow(); break;
     case "c": cyclePalette(1); break;
     case "C": cyclePalette(-1); break;
-    case "s": case "S": setStyle(FORMS[(FORMS.indexOf(opts.style) + 1) % FORMS.length]); break;
-    case "d": case "D": toggleDetail(); break;
+    case "s": case "S": cycleStyle(); break;
+    case "t": case "T": setTree(opts.tree === "sakura" ? "bonsai" : "sakura"); break;
+    case "d": case "D": if (opts.tree === "sakura") toggleDetail(); break;
     case "p": case "+": case "=": changeDensity(1); break;
     case "P": case "-": changeDensity(-1); break;
     case "a": case "A": toggleWind(); break;
