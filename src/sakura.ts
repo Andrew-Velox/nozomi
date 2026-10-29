@@ -42,7 +42,7 @@ export interface SakuraOptions {
   /**
    * The cherry: `"yoshino"` (spreading), `"bush"` (a full cloud), `"shidare"` (weeping) or `"random"`.
    * The bonsai: `"moyogi"` (S-curved), `"chokkan"` (straight), `"shakan"` (slanting), `"fukinagashi"` (windswept), `"sokan"` (twin trunk),
-   * `"hokidachi"` (broom), `"ishitsuki"` (on a stone), `"hankengai"` (semi-cascade), `"kengai"` (cascade), `"bunjin"` (tall and thin) or `"random"`.
+   * `"hokidachi"` (broom), `"ishitsuki"` (on a stone), `"nejikan"` (spiral trunk), `"hankengai"` (semi-cascade), `"kengai"` (cascade), `"bunjin"` (tall and thin) or `"random"`.
    * Default: the first of the tree's own list. A form that does not belong to the tree is ignored.
    */
   form?: FormOption;

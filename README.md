@@ -23,10 +23,11 @@ Plain TypeScript and Canvas 2D, **no runtime dependencies**. The whole app is ab
 - **Two trees.** A cherry in blossom, and a **bonsai**: a tree with a gnarled trunk and layered
   pads of leaves, growing from a mossy rock on grassy ground, with boulders and wild flowers. Switch between them with the Tree
   button or `t`. The wind, weather, rain, falling leaves and click ripples work the same on both.
-- **Ten bonsai styles,** each with its own trunk, branching, rock and crown: moyogi (S-curved),
+- **Eleven bonsai styles,** each with its own trunk, branching, rock and crown: moyogi (S-curved),
   chokkan (formal upright, in tiers), shakan (slanting), fukinagashi (windswept), sokan (twin trunk),
   hokidachi (a broom: a straight trunk under a round crown), ishitsuki (on a flat slab of stone, roots
-  gripping it), hankengai (semi-cascade), kengai (a coiled, woven trunk that climbs in an S into a leaning crown, with a long branch falling down the rock) and bunjin (tall, thin,
+  gripping it), nejikan (a spiral trunk twisted like rope, on heaving roots), hankengai (a semi-cascade: a twisted trunk and
+  thick roots under a long crown that sweeps out and down), kengai (a coiled, woven trunk that climbs in an S into a leaning crown, with a long branch falling down the rock) and bunjin (tall, thin,
   bare), or a random one.
 - **Three kinds of cherry:** yoshino (spreading), bush (a full, rounded cloud) and shidare
   (weeping), or a random one on every regrow. No two trees are alike.
@@ -95,7 +96,7 @@ Every option is optional.
 | --- | --- | --- |
 | `tree` | `"sakura"` | `"sakura"` (a cherry in blossom) or `"bonsai"` (a tree on a mossy rock). Switching grows a new tree, with that tree's own colour and form unless you pass them too. |
 | `palette` | `"sakura"` (`"pine"` for the bonsai) | Blossom or leaf colour: `sakura` `blush` `rose` `peach` `coral` `gold` `lavender` `violet` `sky` `mint` `matcha` `white` `pine` `juniper` `maple` `autumn`. |
-| `form` | `"yoshino"` (`"moyogi"` for the bonsai) | The cherry: `yoshino`, `bush`, `shidare` (weeping) or `random`. The bonsai: `moyogi`, `chokkan`, `shakan`, `fukinagashi`, `sokan`, `hokidachi`, `ishitsuki`, `hankengai`, `kengai`, `bunjin` or `random`. Changing it grows a new tree. |
+| `form` | `"yoshino"` (`"moyogi"` for the bonsai) | The cherry: `yoshino`, `bush`, `shidare` (weeping) or `random`. The bonsai: `moyogi`, `chokkan`, `shakan`, `fukinagashi`, `sokan`, `hokidachi`, `ishitsuki`, `nejikan`, `hankengai`, `kengai`, `bunjin` or `random`. Changing it grows a new tree. |
 | `detail` | `false` | `true` for the finely branched pixel tree, `false` for the blocky cell style. (The bonsai is always drawn finely.) |
 | `petals` | `5` | How many petals, 1 to 10. |
 | `wind` | `3` | Wind strength, 0 to 10, or `false` for still air. |
@@ -161,7 +162,7 @@ The keyboard works as well:
 | `f` | Ambient mode: fullscreen, and the controls fade away after a couple of idle seconds (move to bring them back, `Esc` to leave) |
 | `r` | regrow the tree (a new shape every time) |
 | `t` | switch between the sakura and the bonsai |
-| `s` | style of the current tree (cherry: yoshino, bush, shidare, random; bonsai: moyogi, chokkan, shakan, fukinagashi, sokan, hokidachi, ishitsuki, hankengai, kengai, bunjin, random) |
+| `s` | style of the current tree (cherry: yoshino, bush, shidare, random; bonsai: moyogi, chokkan, shakan, fukinagashi, sokan, hokidachi, ishitsuki, nejikan, hankengai, kengai, bunjin, random) |
 | `c` / `C` | next / previous blossom or leaf colour |
 | `d` | detail mode on / off (the sakura only) |
 | `p` / `P` | more / fewer petals (1 to 10) |
