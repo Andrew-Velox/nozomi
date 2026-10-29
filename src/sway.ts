@@ -3,8 +3,8 @@ import { drawGrid } from "./render";
 import type { Wind } from "./wind";
 
 export interface SwayOptions {
-  /** "hang": strands fixed at the top, free at the bottom. "mass": a body that sways as one. */
-  mode: "hang" | "mass";
+  /** "hang": strands fixed at the top, free at the bottom. "mass": a body that sways as one. "grow": blades fixed at the bottom, free at the top (grass). */
+  mode: "hang" | "mass" | "grow";
   /** Swing in cells: how far a hanging strand's tip can move, or how hard a poke shoves a mass. */
   swing: number;
   /** Random ripples per second while the wind blows; 0 for none. They pop up at random spots on the layer. */
@@ -31,6 +31,8 @@ export class SwayLayer {
   private mask = new Uint8Array(0); // which cells hold pixels
   private cols = 0;
   private anchor = new Float32Array(0); // hanging layers: where each column hangs from, smoothed
+  private bottom = new Int16Array(0); // growing layers: the lowest row of each column, where its blades are rooted
+  private rowHas = new Uint8Array(0); // which rows hold any pixels, so empty bands are not drawn
   private x0 = 0;
   private x1 = -1;
   private y0 = 0;
@@ -66,6 +68,8 @@ export class SwayLayer {
     this.cols = grid.w;
     this.mask = new Uint8Array(grid.w * grid.h);
     const first = new Int16Array(grid.w).fill(-1);
+    this.bottom = new Int16Array(grid.w).fill(-1);
+    this.rowHas = new Uint8Array(grid.h);
     this.x0 = grid.w;
     this.x1 = -1;
     this.y0 = grid.h;
@@ -75,6 +79,8 @@ export class SwayLayer {
       for (let y = 0; y < grid.h; y++) {
         if (!grid.cells[y * grid.w + x]) continue;
         this.mask[y * grid.w + x] = 1;
+        this.rowHas[y] = 1;
+        this.bottom[x] = y;
         if (first[x] < 0) first[x] = y;
         this.x0 = Math.min(this.x0, x);
         this.x1 = Math.max(this.x1, x);
@@ -115,7 +121,7 @@ export class SwayLayer {
       if (this.buildId === token) this.bitmap = bitmap;
       else bitmap.close();
     });
-    this.reach = Math.max(12, (this.y1 - this.y0) * 0.9);
+    this.reach = opts.mode === "grow" ? 5 : Math.max(12, (this.y1 - this.y0) * 0.9);
     this.offsets = new Int16Array(this.x1 - this.x0 + 2);
   }
 
@@ -155,6 +161,7 @@ export class SwayLayer {
     if (!src) return;
     const { cw, ch, dpr, x0, x1, reach, offsets } = this;
     const hang = this.mode === "hang";
+    const grow = this.mode === "grow";
     const amp = this.swing * cw; // widest swing of a strand tip, in px
     const step = Math.max(1, Math.round(cw * 0.5)); // shifts come in small steps: smooth, but pixels stay crisp
     const band = Math.max(1, Math.round(8 / ch)); // rows drawn together
@@ -163,6 +170,9 @@ export class SwayLayer {
 
     for (let y = this.y0; y <= this.y1; y += band) {
       const rows = Math.min(band, this.y1 + 1 - y);
+      let any = false;
+      for (let r = 0; r < rows; r++) if (this.rowHas[y + r]) any = true;
+      if (!any) continue; // nothing on these rows (grass has a gap between the ground and the top of the rock)
       const yMid = y + (rows - 1) / 2;
 
       // shift for every column of this band
@@ -180,6 +190,19 @@ export class SwayLayer {
             const wave = Math.sin(t * 1.8 - d * 6.5 + x * 0.045) * 0.85 + Math.sin(t * 3.1 - d * 11 + x * 0.09) * 0.3;
             shift += amp * k * (wave * gust + lean * 1.2);
             weight = Math.min(1, d / 0.3);
+          } else {
+            weight = 0;
+          }
+        }
+        if (grow) {
+          const b = this.bottom[x];
+          if (b >= 0 && yMid < b + 0.5) {
+            const d = Math.min((b + 0.5 - yMid) / reach, 1.3); // 0 at the root, 1 at the tip of a tall blade
+            const k = Math.pow(d, 1.25);
+            // a slow swell rolls across the field, with a quicker flutter on top, so neighbouring blades are never quite in step
+            const wave = Math.sin(t * 1.7 + x * 0.06) * 0.8 + Math.sin(t * 3.4 + x * 0.19 + d * 2) * 0.3;
+            shift += amp * k * (wave * gust * 0.6 + lean * 0.9);
+            weight = Math.min(1, d / 0.4);
           } else {
             weight = 0;
           }

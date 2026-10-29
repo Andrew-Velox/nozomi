@@ -26,6 +26,7 @@ export const BONSAI_STYLES: readonly BonsaiForm[] = ["moyogi", "chokkan", "shaka
 export interface BonsaiEnv {
   grid: Grid; // square cells: one cell is one pixel
   foliage: Grid; // the pads of leaves go here so they can sway
+  grass: Grid; // blades of grass and flowers go here so they can sway
   ramp: Rgb[]; // leaf colours, 0 lightest to 7 deepest
   rng: Rng;
 }
@@ -214,7 +215,7 @@ interface Crown {
 
 /** `wild` is for the Random option: the trunk's whole path is invented afresh, with its own bends, coils and twist. */
 export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): BonsaiResult {
-  const { grid, foliage, ramp, rng } = env;
+  const { grid, foliage, grass, ramp, rng } = env;
   const W = grid.w;
   const H = grid.h;
   const style = STYLES[form];
@@ -226,6 +227,10 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): Bons
 
   const put = (x: number, y: number, c: Rgb, kind: number): void => {
     grid.set(x, y, { glyph: G_BLOCK, color: c, bg: c, cov: 1, kind });
+  };
+  // blades and flowers stand on their own layer, which sways in the wind
+  const putGrass = (x: number, y: number, c: Rgb): void => {
+    grass.set(x, y, { glyph: G_BLOCK, color: c, bg: c, cov: 1, kind: K_GROUND });
   };
 
   // ---- the ground and the rock: sizes ---------------------------------------
@@ -266,7 +271,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): Bons
     // blades standing above the line
     if (rng() < 0.55) {
       const bh = 1 + Math.floor(rng() * (1 + clump * 3));
-      for (let k = 1; k <= bh; k++) put(x, groundTop - k, GRASS[clamp(2 + k, 0, 4)], K_GROUND);
+      for (let k = 1; k <= bh; k++) putGrass(x, groundTop - k, GRASS[clamp(2 + k, 0, 4)]);
     }
   }
 
@@ -303,7 +308,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): Bons
         put(x, y, c, K_GROUND);
       }
       // grass blades over the top, and tufts drooping over the shoulders
-      if (rng() < 0.6) for (let k = 1; k <= 1 + Math.floor(rng() * 3); k++) put(x, top - k, GRASS[clamp(2 + k, 0, 4)], K_GROUND);
+      if (rng() < 0.6) for (let k = 1; k <= 1 + Math.floor(rng() * 3); k++) putGrass(x, top - k, GRASS[clamp(2 + k, 0, 4)]);
     }
   };
   // a shadow on the grass either side of the rock
@@ -327,14 +332,14 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): Bons
   for (let x = Math.floor(left) - 4; x <= Math.ceil(right) + 4; x++) {
     if (rng() < 0.7) {
       const bh = 1 + Math.floor(rng() * 4);
-      for (let k = 0; k < bh; k++) put(x, footRow - k + 1, GRASS[clamp(1 + k, 0, 4)], K_GROUND);
+      for (let k = 0; k < bh; k++) putGrass(x, footRow - k + 1, GRASS[clamp(1 + k, 0, 4)]);
     }
   }
   // little flowers
   for (let i = 0; i < Math.round(W / 22); i++) {
     const fx = Math.round(rand(0, W - 1));
     const fy = groundTop - 1 - Math.floor(rng() * 2);
-    put(fx, fy, FLOWERS[Math.floor(rng() * FLOWERS.length)], K_GROUND);
+    putGrass(fx, fy, FLOWERS[Math.floor(rng() * FLOWERS.length)]);
   }
 
   // ---- wood -----------------------------------------------------------------
@@ -761,6 +766,9 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): Bons
     const end = trunkAt(0.99);
     pads.push({ x: end[0], y: end[1] - tH * 0.02, rx: tH * 0.12 * dense, ry: tH * 0.06 * dense });
   }
+
+  // grass never grows over wood
+  for (let i = 0; i < grass.cells.length; i++) if (grass.cells[i] && grid.cells[i]?.kind === K_WOOD) grass.cells[i] = null;
 
   // ---- foliage --------------------------------------------------------------
   // Upper pads first (so a lower one sits in front of the one above it); a dome goes the other way.

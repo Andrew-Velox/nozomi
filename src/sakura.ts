@@ -163,6 +163,7 @@ export class Sakura {
   private readonly rain = new Rain();
   private readonly leaves = new SwayLayer(); // blossom clusters
   private readonly curtain = new SwayLayer(); // weeping strands
+  private readonly grassLayer = new SwayLayer(); // blades of grass (the bonsai's meadow)
 
   private ramp: Rgb[];
   private cellW = 9;
@@ -345,6 +346,7 @@ export class Sakura {
     this.audio.destroy();
     this.leaves.dispose();
     this.curtain.dispose();
+    this.grassLayer.dispose();
     this.canvas.remove();
     if (this.restoreContainerPosition !== null) this.container.style.position = this.restoreContainerPosition;
   }
@@ -431,6 +433,7 @@ export class Sakura {
     const grid = new Grid(cols, rows);
     const foliage = new Grid(cols, rows);
     const strands = new Grid(cols, rows);
+    const grass = new Grid(cols, rows);
 
     const { top: bgTop, bot: bgBot } = BACKDROP[this.opts.tree];
     let groundRow = grid.h - 1;
@@ -440,7 +443,7 @@ export class Sakura {
     this.treeCtx.clearRect(0, 0, w, h);
     if (this.opts.tree === "bonsai") {
       const style = this.opts.form === "random" ? BONSAI_STYLES[Math.floor(rng() * BONSAI_STYLES.length)] : (this.opts.form as BonsaiForm);
-      const grown = growBonsai({ grid, foliage, ramp, rng }, style, this.opts.form === "random");
+      const grown = growBonsai({ grid, foliage, grass, ramp, rng }, style, this.opts.form === "random");
       sources = grown.sources;
       groundRow = grown.groundRow;
     } else {
@@ -466,6 +469,7 @@ export class Sakura {
     const bonsai = this.opts.tree === "bonsai";
     this.leaves.build(foliage, cellW, cellH, dpr, { mode: "mass", swing: bonsai ? 0.8 : 1, ambient: bonsai ? 0.8 : 1.0, tempo: 0.6 });
     this.curtain.build(strands, cellW, cellH, dpr, { mode: "hang", swing: this.fine ? 5 : 2.2 });
+    this.grassLayer.build(grass, cellW, cellH, dpr, { mode: "grow", swing: 0.9 });
 
     const world = this.world;
     world.w = w;
@@ -537,6 +541,7 @@ export class Sakura {
       ctx.clearRect(0, 0, w, h); // transparent: the page shows through
     }
     ctx.drawImage(this.treeCanvas, 0, 0, w, h);
+    this.grassLayer.draw(ctx, t, wind);
     this.leaves.draw(ctx, t, wind);
     this.curtain.draw(ctx, t, wind);
     this.petals.draw(ctx);
