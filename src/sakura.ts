@@ -469,7 +469,7 @@ export class Sakura {
     const bonsai = this.opts.tree === "bonsai";
     this.leaves.build(foliage, cellW, cellH, dpr, { mode: "mass", swing: bonsai ? 0.8 : 1, ambient: bonsai ? 0.8 : 1.0, tempo: 0.6 });
     this.curtain.build(strands, cellW, cellH, dpr, { mode: "hang", swing: this.fine ? 5 : 2.2 });
-    this.grassLayer.build(grass, cellW, cellH, dpr, { mode: "grow", swing: 0.9 });
+    this.grassLayer.build(grass, cellW, cellH, dpr, { mode: "grow", swing: 1.5 });
 
     const world = this.world;
     world.w = w;

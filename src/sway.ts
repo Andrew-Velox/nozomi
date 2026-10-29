@@ -31,7 +31,8 @@ export class SwayLayer {
   private mask = new Uint8Array(0); // which cells hold pixels
   private cols = 0;
   private anchor = new Float32Array(0); // hanging layers: where each column hangs from, smoothed
-  private bottom = new Int16Array(0); // growing layers: the lowest row of each column, where its blades are rooted
+  private runBottom = new Int16Array(0); // growing layers: for each pixel, the row its blade is rooted in
+  private runHeight = new Uint8Array(0); // ...and how tall that blade is, in rows
   private rowHas = new Uint8Array(0); // which rows hold any pixels, so empty bands are not drawn
   private x0 = 0;
   private x1 = -1;
@@ -68,7 +69,8 @@ export class SwayLayer {
     this.cols = grid.w;
     this.mask = new Uint8Array(grid.w * grid.h);
     const first = new Int16Array(grid.w).fill(-1);
-    this.bottom = new Int16Array(grid.w).fill(-1);
+    this.runBottom = new Int16Array(grid.w * grid.h);
+    this.runHeight = new Uint8Array(grid.w * grid.h);
     this.rowHas = new Uint8Array(grid.h);
     this.x0 = grid.w;
     this.x1 = -1;
@@ -80,7 +82,6 @@ export class SwayLayer {
         if (!grid.cells[y * grid.w + x]) continue;
         this.mask[y * grid.w + x] = 1;
         this.rowHas[y] = 1;
-        this.bottom[x] = y;
         if (first[x] < 0) first[x] = y;
         this.x0 = Math.min(this.x0, x);
         this.x1 = Math.max(this.x1, x);
@@ -89,6 +90,29 @@ export class SwayLayer {
       }
     }
     if (this.x1 < 0) return;
+
+    // Grass: every blade is a run of pixels in a column. Its root is the bottom of the run, and it sways by its own height,
+    // so a one-pixel blade moves as much (for its size) as a tall one and the whole meadow waves together.
+    if (opts.mode === "grow") {
+      for (let x = this.x0; x <= this.x1; x++) {
+        let y = grid.h - 1;
+        while (y >= 0) {
+          if (!this.mask[y * grid.w + x]) {
+            y--;
+            continue;
+          }
+          const bottom = y;
+          let top = y;
+          while (top - 1 >= 0 && this.mask[(top - 1) * grid.w + x]) top--;
+          const height = Math.min(bottom - top + 1, 255);
+          for (let r = top; r <= bottom; r++) {
+            this.runBottom[r * grid.w + x] = bottom;
+            this.runHeight[r * grid.w + x] = height;
+          }
+          y = top - 1;
+        }
+      }
+    }
 
     // Each column hangs from a slightly different row. Using that directly
     // would give every column its own shift and cost one draw call per column
@@ -195,14 +219,22 @@ export class SwayLayer {
           }
         }
         if (grow) {
-          const b = this.bottom[x];
-          if (b >= 0 && yMid < b + 0.5) {
-            const d = Math.min((b + 0.5 - yMid) / reach, 1.3); // 0 at the root, 1 at the tip of a tall blade
-            const k = Math.pow(d, 1.25);
-            // a slow swell rolls across the field, with a quicker flutter on top, so neighbouring blades are never quite in step
-            const wave = Math.sin(t * 1.7 + x * 0.06) * 0.8 + Math.sin(t * 3.4 + x * 0.19 + d * 2) * 0.3;
-            shift += amp * k * (wave * gust * 0.6 + lean * 0.9);
-            weight = Math.min(1, d / 0.4);
+          // the topmost pixel of this column in this band (if any) decides how the column moves
+          let row = -1;
+          for (let r = 0; r < rows; r++) {
+            if (this.mask[(y + r) * this.cols + x]) {
+              row = y + r;
+              break;
+            }
+          }
+          if (row >= 0) {
+            const i = row * this.cols + x;
+            const h = this.runHeight[i];
+            const d = (this.runBottom[i] + 1 - (row + 0.5)) / h; // 0 at the root, up to 1 at the tip (a one-pixel blade is halfway)
+            // one slow swell rolls over the whole meadow (every blade moves with it), with a quicker flutter on top
+            const wave = Math.sin(t * 1.6 + x * 0.03) * 0.85 + Math.sin(t * 3.3 + x * 0.11) * 0.25;
+            shift += amp * Math.pow(d, 1.1) * (wave * gust * 0.7 + lean * 0.9);
+            weight = Math.min(1, d / 0.35);
           } else {
             weight = 0;
           }
