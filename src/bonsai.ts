@@ -729,7 +729,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): Bons
       [from, [from[0] + dir * tH * 0.12, from[1] - tH * 0.02], [from[0] + dir * tH * 0.24, from[1] + tH * 0.06], [from[0] + dir * tH * 0.33, lerp(from[1], endY, 0.55)], [from[0] + dir * tH * 0.35, endY]],
       60,
     );
-    stroke(fall, (u) => lerp(trunkR * 0.55, 1.1, Math.pow(u, 0.8)), { vertical: false, rough: 0.7, moss: 0.25 });
+    stroke(fall, (u) => lerp(trunkR * 0.55, 1.1, Math.pow(u, 0.8)), { vertical: false, rough: 0.7 });
     const fallAt = (u: number): Point => fall[clamp(Math.round(u * (fall.length - 1)), 0, fall.length - 1)];
     cascadePads(fallAt, 0.25, 0.98, 6, 0.17, tH);
   } else if (form === "hankengai") {
