@@ -243,10 +243,11 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
       let c: Rgb;
       if (k < gh) c = GRASS[clamp(Math.round(4 - (k / Math.max(gh - 1, 1)) * 3.2 + (rng() - 0.5) * 1.4), 0, 4)]; // dark at the root, light at the tip
       else {
-        const e = noise2(x * 0.12 + seed, y * 0.6 + 3);
-        c = EARTH[e > 0.62 ? 2 : e > 0.3 ? 1 : 0];
-        if (rng() < 0.025) c = palette[1]; // a buried stone
-        c = mix(c, [0, 0, 0], (k - gh) / (groundH * 1.6));
+        // below the grass it is still moss: a deep, mottled green, darker toward the bottom
+        const e = noise2(x * 0.12 + seed, y * 0.6 + 3) * 0.7 + noise2(x * 0.5 + seed, y * 0.9) * 0.3;
+        c = GRASS[e > 0.62 ? 2 : e > 0.36 ? 1 : 0];
+        if (rng() < 0.05) c = GRASS[clamp(Math.round(e * 3) + 1, 0, 4)]; // flecks of lighter moss
+        c = mix(c, EARTH[0], 0.3 + 0.3 * Math.min((k - gh) / (groundH * 1.4), 1)); // a trace of soil, so it reads as earth
       }
       put(x, y, c, K_GROUND);
     }
@@ -276,12 +277,14 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
         } else {
           const strata = noise2(x * 0.06 + seed, y * 0.7 + 2) + Math.sin(y * 0.9 + noise2(x * 0.05, y * 0.2) * 5) * 0.12;
           let tone = clamp(Math.floor(strata * 4 + -u * 0.9 + 0.5 - row * 1.1), 0, 4);
-          if (rng() < 0.035) tone = clamp(tone - 1, 0, 4);
           c = palette[tone];
           if (u > 0.8) c = mix(c, palette[0], 0.45); // the unlit right side
-          if (noise2((x + y * 0.7) * 0.16 + seed, 9) > 0.78 && noise2(x * 0.3, y * 0.3) > 0.5) c = mix(c, palette[0], 0.55); // a crack
-          const m = noise2(x * 0.11 + seed, y * 0.3 + 7) + (rng() - 0.5) * 0.25;
-          if (m > 0.7 - mossy && row < 0.75) c = GRASS[clamp(Math.round((m - 0.7 + mossy) * 8 + 1), 0, 3)]; // moss clinging to the stone
+          // moss over nearly all of it: lit from the left, darker down the face and in the layer lines, with a little bare stone showing
+          const m = noise2(x * 0.11 + seed, y * 0.3 + 7) + (rng() - 0.5) * 0.3;
+          if (m > 0.14 - mossy) {
+            const lines = Math.sin(y * 0.9 + noise2(x * 0.05, y * 0.2) * 5) < -0.55 ? 1 : 0; // the seams between layers sit in shade
+            c = GRASS[clamp(Math.round(1.7 - u * 0.9 + m * 1.6 - row * 1.3 - lines + (rng() - 0.5) * 0.9), 0, 4)];
+          }
         }
         put(x, y, c, K_GROUND);
       }
