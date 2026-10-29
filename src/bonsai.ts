@@ -31,7 +31,7 @@ export interface BonsaiEnv {
 
 export interface BonsaiResult {
   sources: Point[]; // where leaves can fall from, in cells
-  groundRow: number; // the row leaves come to rest on (the table top)
+  groundRow: number; // the row leaves come to rest on (the grass)
 }
 
 const BARK = ["#271a13", "#46321f", "#6d4d36", "#977655"].map(hex);
@@ -173,7 +173,7 @@ const STYLES: Record<BonsaiForm, Style> = {
   hankengai: {
     set: { rock: "sand", h: 0.24, w: 2.2, round: 2.8, height: 0.86, pull: 0.12, root: 0.2 },
   },
-  // cascade: grows up, then pours over the edge of a tall pot and falls below it
+  // cascade: grows up, then pours down the side of a tall rock
   kengai: {
     set: { rock: "dark", h: 0.36, w: 0.95, round: 3.2, height: 0.8, pull: 0.08, root: 0.1 },
   },
@@ -466,7 +466,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   const ctrlOf = (path: [number, number][], tH: number, from: Point = base, mirror = dir): Point[] =>
     path.map(([dx, up]) => [from[0] + mirror * dx * tH + (dx === 0 && up === 0 ? 0 : rand(-0.004, 0.004) * tH), from[1] - up * tH * 0.88]);
 
-  // A tree that pours over a pot: pads hang along the fall.
+  // A tree that pours down a rock: pads hang along the fall.
   const cascadePads = (trunkAt: (u: number) => Point, from: number, to: number, count: number, size: number, tH: number): void => {
     for (let i = 0; i < count; i++) {
       const t = lerp(from, to, count === 1 ? 0 : i / (count - 1));
