@@ -335,6 +335,8 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     rough?: number; // 0 smooth, 1 deeply furrowed (an old, gnarled trunk)
     clip?: number; // paint nothing below this row
     clipBase?: boolean; // the foot of a trunk stays on top of the rock
+    moss?: number; // 0 to 1: moss growing on the upper, lit side of the wood
+    mossUntil?: number; // ...only along the first part of the stroke (the foot of a trunk)
   }
 
   const soilLine = y0 + 2; // the foot of a trunk stops here: below it is the rock
@@ -370,6 +372,10 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
           const centre = -0.28 * sh.side + wob;
           const half = 0.2 * along;
           if (Math.abs(dx / rr - centre) < half && lit > -0.6) c = DEAD[clamp(tone - 1, 0, 2)];
+        }
+        if (b.moss && (b.mossUntil === undefined || u < b.mossUntil) && lit > -0.25) {
+          const n = noise2(px * 0.3 + seed, py * 0.3 + 4) + (rng() - 0.5) * 0.25;
+          if (n > 0.64 - b.moss * 0.4) c = GRASS[clamp(Math.round(1.6 + lit * 1.3 + (n - 0.5) * 2), 0, 4)];
         }
         put(px, py, c, K_WOOD);
       }
@@ -408,7 +414,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
         [sx + side * len * 0.55, base[1] - trunkR * 0.05 + rand(-0.5, 0.5)],
         [sx + side * len, y0 + 0.8],
       ];
-      stroke(spline(pts, 12), (u) => trunkR * lerp(0.6, 0.15, u), { vertical: false });
+      stroke(spline(pts, 12), (u) => trunkR * lerp(0.6, 0.15, u), { vertical: false, moss: 0.55 });
     }
   };
 
@@ -419,7 +425,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     const radiusAt = (u: number): number => Math.max(0.8, trunkR * (1 - limb.taper * Math.pow(u, 0.6)) * (1 + 0.5 * Math.exp(-u * 22)));
     const trunkAt = (u: number): Point => trunk[clamp(Math.round(u * (trunk.length - 1)), 0, trunk.length - 1)];
     if (o.main) surfaceRoots(trunkR, 5 + Math.floor(rng() * 3), 1);
-    stroke(trunk, radiusAt, { vertical: true, clipBase: true, rough: 0.3, shari: limb.shari && o.main ? { from: rand(0.06, 0.16), to: rand(0.45, 0.6), side: -leanDir } : undefined });
+    stroke(trunk, radiusAt, { vertical: true, clipBase: true, moss: 0.4, mossUntil: 0.07, rough: 0.3, shari: limb.shari && o.main ? { from: rand(0.06, 0.16), to: rand(0.45, 0.6), side: -leanDir } : undefined });
 
     const crownR = tH * limb.reach;
     const cone = limb.cone ?? 0.74;
@@ -502,7 +508,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     const trunk = spline(ctrl, 60);
     const radiusAt = (u: number): number => Math.max(1.4, trunkR * (1 - 0.35 * Math.pow(u, 0.7)) * (1 + 0.5 * Math.exp(-u * 20)));
     surfaceRoots(trunkR, 6, 1);
-    stroke(trunk, radiusAt, { vertical: true, clipBase: true, rough: 0.5 });
+    stroke(trunk, radiusAt, { vertical: true, clipBase: true, moss: 0.4, mossUntil: 0.07, rough: 0.5 });
     const fork = trunk[trunk.length - 1];
     const crownRx = treeH * 0.4;
     const crownRy = treeH * 0.3;
@@ -556,9 +562,9 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
         [sx + side * reach * 0.75, y0 + rand(0, 1.5)],
         [sx + side * reach, y0 + baseH * rand(0.25, 0.7)],
       ];
-      stroke(spline(pts, 16), (u) => trunkR * lerp(0.62, 0.12, u), { vertical: false, rough: 0.6 });
+      stroke(spline(pts, 16), (u) => trunkR * lerp(0.62, 0.12, u), { vertical: false, rough: 0.6, moss: 0.65 });
     }
-    stroke(trunk, radiusAt, { vertical: true, clipBase: true, rough: 1, shari: { from: 0.05, to: 0.6, side: -dir } });
+    stroke(trunk, radiusAt, { vertical: true, clipBase: true, moss: 0.4, mossUntil: 0.1, rough: 1, shari: { from: 0.05, to: 0.6, side: -dir } });
     const top = trunk[trunk.length - 1];
     const crownRx = treeH * 0.52;
     const crownRy = treeH * 0.25;
@@ -601,7 +607,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     const radiusAt = (u: number): number => Math.max(1.3, trunkR * (1 - 0.5 * Math.pow(u, 0.7)) * (1 + 0.6 * Math.exp(-u * 18)));
     const trunkAt = (u: number): Point => trunk[clamp(Math.round(u * (trunk.length - 1)), 0, trunk.length - 1)];
     surfaceRoots(trunkR, 5, 1);
-    stroke(trunk, radiusAt, { vertical: true, clipBase: true, rough: 0.5, shari: { from: 0.08, to: 0.4, side: -dir } });
+    stroke(trunk, radiusAt, { vertical: true, clipBase: true, moss: 0.4, mossUntil: 0.07, rough: 0.5, shari: { from: 0.08, to: 0.4, side: -dir } });
     // the crest: a broad mass where the trunk turns over
     const crest = trunkAt(0.4);
     const big = treeH * (isK ? 0.17 : 0.2);
