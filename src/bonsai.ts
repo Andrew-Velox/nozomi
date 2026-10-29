@@ -259,13 +259,15 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   }
 
   // ---- a rock: a body that is tall in the middle, grassy on top, layered and lit from the left -----------
-  const rockBody = (mx: number, hw: number, h: number, round: number, mossy: number): void => {
+  const rockTop = new Map<number, number>(); // the top edge of the main rock, so roots can follow it
+  const rockBody = (mx: number, hw: number, h: number, round: number, mossy: number, record = false): void => {
     for (let x = Math.floor(mx - hw) - 1; x <= Math.ceil(mx + hw) + 1; x++) {
       const u = (x - mx) / hw;
       const au = Math.abs(u);
       if (au > 1) continue;
       const shape = Math.pow(1 - Math.pow(au, round), 0.55);
       const top = Math.round(footRow - h * shape + 1 - (noise2(x * 0.13 + seed, 2.2) - 0.5) * h * 0.14);
+      if (record) rockTop.set(x, top);
       const bottom = footRow + 1;
       const capRows = 2 + (noise2(x * 0.2 + seed, 6.3) > 0.5 ? 1 : 0) + (au > 0.7 ? 1 : 0);
       for (let y = top; y <= bottom; y++) {
@@ -308,7 +310,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     const bhh = baseH * rand(0.25, 0.4);
     rockBody(cxp + side * baseW * rand(0.58, 0.8), bw, bhh, 2.2, 0.02);
   }
-  rockBody(cxp, baseW / 2, baseH, set.round, 0.04);
+  rockBody(cxp, baseW / 2, baseH, set.round, 0.04, true);
   // grass growing round the foot of the rock, in front of it
   for (let x = Math.floor(left) - 4; x <= Math.ceil(right) + 4; x++) {
     if (rng() < 0.7) {
@@ -326,6 +328,8 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   // ---- wood -----------------------------------------------------------------
   // Light comes from the upper left, so a limb is light on its upper left and dark on its lower right.
   const radMap = new Float32Array(W * H);
+  // the row of the rock's surface at a column (the top of the rock, or the grass beyond its edge)
+  const surfY = (x: number): number => rockTop.get(Math.round(x)) ?? groundTop;
   const lightX = -0.6;
   const lightY = -0.8;
 
@@ -404,17 +408,30 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   let crown: Crown | null = null; // set for a tree whose crown is one dome rather than separate tiers
   let lowerFirst = false; // draw the lower pads first, so the upper ones sit on top of them (a dome)
 
+  // A root runs out from the trunk lying on the rock: it follows the rock's surface, so it clings to it,
+  // and where the rock slopes away it follows it down.
+  const hug = (x0: number, side: number, len: number, r0: number, r1: number, wander: number): Point[] => {
+    const n = Math.max(6, Math.round(len / 3));
+    const pts: Point[] = [];
+    for (let i = 0; i <= n; i++) {
+      const f = i / n;
+      const x = x0 + side * len * f;
+      const r = lerp(r0, r1, f);
+      pts.push([x, surfY(x) - r * 0.35 + (i === 0 ? 0 : (noise2(x * 0.2 + seed, 12) - 0.5) * wander)]);
+    }
+    return spline(pts, Math.max(12, n * 3));
+  };
+
   const surfaceRoots = (trunkR: number, n: number, spread: number): void => {
     for (let i = 0; i < n; i++) {
       const side = i % 2 ? 1 : -1;
-      const len = trunkR * rand(1.3, 2.3) * spread * (i < 2 ? 1 : 0.75);
+      const len = trunkR * rand(1.7, 3.2) * spread * (i < 2 ? 1 : 0.8);
       const sx = base[0] + side * trunkR * 0.3;
-      const pts: Point[] = [
-        [sx, base[1] - trunkR * 0.5],
-        [sx + side * len * 0.55, base[1] - trunkR * 0.05 + rand(-0.5, 0.5)],
-        [sx + side * len, y0 + 0.8],
-      ];
-      stroke(spline(pts, 12), (u) => trunkR * lerp(0.6, 0.15, u), { vertical: false, moss: 0.55 });
+      const r0 = trunkR * 0.6;
+      const r1 = trunkR * 0.2;
+      const pts = hug(sx, side, len, r0, r1, 1.2);
+      pts.unshift([sx, base[1] - trunkR * 0.5]);
+      stroke(pts, (u) => r1 + (r0 - r1) * Math.pow(1 - u, 0.65), { vertical: false, moss: 0.55 });
     }
   };
 
@@ -550,19 +567,17 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     const ctrl = ctrlOf(path, treeH);
     const trunk = spline(ctrl, 70);
     const radiusAt = (u: number): number => Math.max(1.6, trunkR * (1 - 0.55 * Math.pow(u, 0.7)) * (1 + 0.45 * Math.exp(-u * 24)));
-    // roots that grip the stone: out across the top and down its sides
+    // roots that grip the stone: out across the top, following it, and down its sides
     const rootN = 8;
     for (let i = 0; i < rootN; i++) {
       const side = i % 2 ? 1 : -1;
-      const reach = (baseW / 2) * rand(0.55, 0.98) * (i < 2 ? 1 : 0.7);
+      const reach = (baseW / 2) * rand(0.6, 1.05) * (i < 2 ? 1 : 0.78);
       const sx = base[0] + side * trunkR * rand(0.1, 0.5);
-      const pts: Point[] = [
-        [sx, base[1] - trunkR * 0.7],
-        [sx + side * reach * 0.35, base[1] - trunkR * 0.15 + rand(-1, 1)],
-        [sx + side * reach * 0.75, y0 + rand(0, 1.5)],
-        [sx + side * reach, y0 + baseH * rand(0.25, 0.7)],
-      ];
-      stroke(spline(pts, 16), (u) => trunkR * lerp(0.62, 0.12, u), { vertical: false, rough: 0.6, moss: 0.65 });
+      const r0 = trunkR * 0.62;
+      const r1 = trunkR * 0.18;
+      const pts = hug(sx, side, reach, r0, r1, 1.6);
+      pts.unshift([sx, base[1] - trunkR * 0.7]);
+      stroke(pts, (u) => r1 + (r0 - r1) * Math.pow(1 - u, 0.65), { vertical: false, rough: 0.6, moss: 0.65 });
     }
     stroke(trunk, radiusAt, { vertical: true, clipBase: true, moss: 0.4, mossUntil: 0.1, rough: 1, shari: { from: 0.05, to: 0.6, side: -dir } });
     const top = trunk[trunk.length - 1];
