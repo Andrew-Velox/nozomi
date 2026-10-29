@@ -342,6 +342,9 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): Bons
   const radMap = new Float32Array(W * H);
   // the row of the rock's surface at a column (the top of the rock, or the grass beyond its edge)
   const surfY = (x: number): number => rockTop.get(Math.round(x)) ?? groundTop;
+  // anything hanging down near the ground (a falling branch, a low pad) gathers moss, more the closer it gets
+  const mossBand = Math.max(8, Math.round(totalH * 0.3));
+  const mossNear = (y: number): number => smooth((y - (groundTop - mossBand)) / mossBand);
   const lightX = -0.6;
   const lightY = -0.8;
 
@@ -392,6 +395,11 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): Bons
         if (b.moss && (b.mossUntil === undefined || u < b.mossUntil) && lit > -0.25) {
           const n = noise2(px * 0.3 + seed, py * 0.3 + 4) + (rng() - 0.5) * 0.25;
           if (n > 0.64 - b.moss * 0.4) c = GRASS[clamp(Math.round(1.6 + lit * 1.3 + (n - 0.5) * 2), 0, 4)];
+        }
+        const near = mossNear(py);
+        if (near > 0 && lit > -0.5) {
+          const n = noise2(px * 0.28 + seed, py * 0.28 + 21) + (rng() - 0.5) * 0.3;
+          if (n > 0.72 - near * 0.5) c = GRASS[clamp(Math.round(1.6 + lit * 1.3 + (n - 0.5) * 2), 0, 4)];
         }
         put(px, py, c, K_WOOD);
       }
@@ -837,7 +845,10 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm, wild = false): Bons
         if (r < 0.04) idx -= 1.3; // single bright leaves
         else if (r < 0.065) idx += 1.1;
         else if (r < 0.072 && !open && !under) idx = hi; // a dark gap
-        foliage.set(x, y, { glyph: G_BLOCK, color: leaf(idx), bg: leaf(idx), cov: 1, kind: K_CANOPY });
+        let col = leaf(idx);
+        const near = mossNear(y);
+        if (near > 0.2 && noise2(x * 0.3 + edgeSeed, y * 0.3 + 3) + (rng() - 0.5) * 0.25 > 0.82 - near * 0.5) col = GRASS[clamp(Math.round(2 + lit * 1.2), 0, 4)]; // moss in the leaves that rest near the ground
+        foliage.set(x, y, { glyph: G_BLOCK, color: col, bg: col, cov: 1, kind: K_CANOPY });
         if (!inMask(x, y + 1) && rng() < 0.05) sources.push([x, y + 1]);
       }
     }
