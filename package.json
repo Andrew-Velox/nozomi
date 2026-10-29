@@ -1,7 +1,7 @@
 {
   "name": "sakura-tree",
   "version": "0.1.0",
-  "description": "A procedurally grown cherry blossom tree for your page: falling petals, wind, weather and rain. Plain TypeScript and Canvas, about 16 KB gzipped, no dependencies.",
+  "description": "A procedurally grown cherry blossom tree, or a potted bonsai, for your page: falling petals, wind, weather and rain. Plain TypeScript and Canvas, about 21 KB gzipped, no dependencies.",
   "keywords": [
     "sakura",
     "cherry-blossom",

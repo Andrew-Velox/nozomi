@@ -1,9 +1,10 @@
-import { createSakura, DEFAULTS, type Sakura, type SakuraOptions } from "./sakura";
+import { createSakura, DEFAULTS, TREE_DEFAULTS, TREES, type Sakura, type SakuraOptions } from "./sakura";
 
 // <sakura-tree palette="lavender" form="shidare" weather="rain" rain></sakura-tree>
+// <sakura-tree tree="bonsai" form="kengai" palette="maple"></sakura-tree>
 //
 // Importing this file registers the element. Style it like any block: give it a width and a height.
-const ATTRIBUTES = ["palette", "form", "detail", "petals", "wind", "weather", "rain", "background", "fps", "seed", "interactive", "cursor", "sound"] as const;
+const ATTRIBUTES = ["tree", "palette", "form", "detail", "petals", "wind", "weather", "rain", "background", "fps", "seed", "interactive", "cursor", "sound"] as const;
 
 const STYLE_ID = "sakura-tree-style";
 
@@ -50,9 +51,13 @@ export class SakuraTreeElement extends HTMLElement {
 
   private read(): SakuraOptions {
     const wind = this.getAttribute("wind");
+    const asked = this.getAttribute("tree");
+    const tree = TREES.find((t) => t === asked) ?? DEFAULTS.tree;
     return {
-      palette: (this.getAttribute("palette") ?? DEFAULTS.palette) as SakuraOptions["palette"],
-      form: (this.getAttribute("form") ?? DEFAULTS.form) as SakuraOptions["form"],
+      tree,
+      // what is not given falls back to what suits the tree: green leaves for a bonsai, blossom for the cherry
+      palette: (this.getAttribute("palette") ?? TREE_DEFAULTS[tree].palette) as SakuraOptions["palette"],
+      form: (this.getAttribute("form") ?? TREE_DEFAULTS[tree].form) as SakuraOptions["form"],
       weather: (this.getAttribute("weather") ?? DEFAULTS.weather) as SakuraOptions["weather"],
       background: (this.getAttribute("background") ?? DEFAULTS.background) as SakuraOptions["background"],
       detail: this.hasAttribute("detail") && this.getAttribute("detail") !== "false",

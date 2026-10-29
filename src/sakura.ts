@@ -1,4 +1,5 @@
 import { Audio } from "./audio";
+import { BONSAI_STYLES, growBonsai, type BonsaiForm } from "./bonsai";
 import { css, hex, mix, type Rgb } from "./color";
 import { cursorFor } from "./cursor";
 import { Grid } from "./grid";
@@ -13,18 +14,38 @@ import { growDetailTree } from "./treehd";
 import { WEATHERS, WeatherFx, type Weather } from "./weather";
 import { Wind } from "./wind";
 
+export const TREES = ["sakura", "bonsai"] as const;
+export type TreeOption = (typeof TREES)[number];
+/** The kinds of cherry. */
 export const FORMS = ["yoshino", "bush", "shidare", "random"] as const;
-export type FormOption = (typeof FORMS)[number];
+/** The styles of bonsai. */
+export const BONSAI_FORMS = [...BONSAI_STYLES, "random"] as const;
+export type FormOption = (typeof FORMS)[number] | (typeof BONSAI_FORMS)[number];
 export { PALETTE_NAMES as PALETTES, WEATHERS };
 export type { PaletteName, Weather };
 
+/** The forms that go with each tree. */
+export const FORMS_OF: Readonly<Record<TreeOption, readonly string[]>> = { sakura: FORMS, bonsai: BONSAI_FORMS };
+
+/** What a tree starts with: its first form, and leaf or blossom colours to suit it. */
+export const TREE_DEFAULTS: Readonly<Record<TreeOption, { form: FormOption; palette: PaletteName }>> = {
+  sakura: { form: "yoshino", palette: "sakura" },
+  bonsai: { form: "moyogi", palette: "pine" },
+};
+
 /** Everything you can set. Every field is optional; what you leave out keeps its default. */
 export interface SakuraOptions {
-  /** Blossom colour. Default `"sakura"`. See `PALETTES`. */
+  /** Which tree: `"sakura"` (a cherry in blossom) or `"bonsai"` (a potted tree on a table). Default `"sakura"`. */
+  tree?: TreeOption;
+  /** Blossom or leaf colour. Default `"sakura"` for the cherry, `"pine"` for the bonsai. See `PALETTES`. */
   palette?: PaletteName;
-  /** Kind of cherry: `"yoshino"` (spreading), `"bush"` (a full cloud), `"shidare"` (weeping) or `"random"`. Default `"yoshino"`. */
+  /**
+   * The cherry: `"yoshino"` (spreading), `"bush"` (a full cloud), `"shidare"` (weeping) or `"random"`.
+   * The bonsai: `"moyogi"` (S-curved), `"chokkan"` (straight), `"shakan"` (slanting), `"kengai"` (cascade), `"bunjin"` (tall and thin) or `"random"`.
+   * Default: the first of the tree's own list. A form that does not belong to the tree is ignored.
+   */
   form?: FormOption;
-  /** `true` draws a finely branched pixel tree, `false` the blocky cell style. Default `false`. */
+  /** `true` draws a finely branched pixel tree, `false` the blocky cell style. The bonsai is always drawn finely. Default `false`. */
   detail?: boolean;
   /** How many petals, 1 to 10. Default 5 (2 for people who prefer reduced motion). */
   petals?: number;
@@ -63,14 +84,18 @@ export interface SakuraCreateOptions extends SakuraOptions {
 /** The options as the scene is using them right now. */
 export type ResolvedOptions = Required<SakuraOptions>;
 
-const BG_TOP = hex("#1a1322");
-const BG_BOT = hex("#110d17");
+// the night sky behind each tree: plum for the cherry, a cool slate for the bonsai
+const BACKDROP = {
+  sakura: { top: hex("#1a1322"), bot: hex("#110d17") },
+  bonsai: { top: hex("#121c25"), bot: hex("#0a1017") },
+};
 const CLICK_RADIUS = 45; // reach of the ripple a click sends through the blossom, in px
 const clamp = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
 const newSeed = (): number => (Math.random() * 1e9) | 0;
 const includes = (list: readonly string[], value: unknown): boolean => typeof value === "string" && list.includes(value);
 
 export const DEFAULTS: Readonly<ResolvedOptions> = {
+  tree: "sakura",
   palette: "sakura",
   form: "yoshino",
   detail: false,
@@ -89,8 +114,15 @@ export const DEFAULTS: Readonly<ResolvedOptions> = {
 // Merge new options into the current ones, ignoring anything that is not valid.
 function merge(base: ResolvedOptions, o: SakuraOptions): ResolvedOptions {
   const next = { ...base };
+  if (includes(TREES, o.tree)) next.tree = o.tree!;
+  const swapped = next.tree !== base.tree;
+  // a new tree starts with its own colours and its own first form, unless you say otherwise
+  if (swapped) {
+    next.palette = TREE_DEFAULTS[next.tree].palette;
+    next.form = TREE_DEFAULTS[next.tree].form;
+  }
   if (includes(PALETTE_NAMES, o.palette)) next.palette = o.palette!;
-  if (includes(FORMS, o.form)) next.form = o.form!;
+  if (includes(FORMS_OF[next.tree], o.form)) next.form = o.form!;
   if (o.detail !== undefined) next.detail = !!o.detail;
   if (Number.isFinite(o.petals)) next.petals = clamp(Math.round(o.petals!), 1, 10);
   if (o.wind === false) next.wind = false;
@@ -107,7 +139,7 @@ function merge(base: ResolvedOptions, o: SakuraOptions): ResolvedOptions {
 }
 
 /**
- * A growing cherry blossom tree drawn on a canvas inside `container`.
+ * A growing tree (a cherry in blossom, or a bonsai) drawn on a canvas inside `container`.
  * Create one with {@link createSakura}.
  */
 export class Sakura {
@@ -250,7 +282,10 @@ export class Sakura {
     if (next.interactive !== prev.interactive || next.cursor !== prev.cursor) this.applyInteractive();
     if (next.sound !== prev.sound) this.audio.set(next.sound);
 
-    if (next.detail !== prev.detail) {
+    if (next.tree !== prev.tree) {
+      if (!seedGiven) this.opts.seed = newSeed();
+      this.layout(); // another kind of tree: a different grid, grown from scratch
+    } else if (next.detail !== prev.detail && next.tree === "sakura") {
       this.layout(); // a different cell size: grow again on a new grid, same seed
     } else if (next.form !== prev.form || seedGiven) {
       if (!seedGiven) this.opts.seed = newSeed();
@@ -343,6 +378,11 @@ export class Sakura {
     this.petals.target = clamp(Math.round((this.w * this.opts.petals) / 36), 16, 800);
   }
 
+  /** Drawn in single pixels: the cherry in detail mode, and always the bonsai. */
+  private get fine(): boolean {
+    return this.opts.detail || this.opts.tree === "bonsai";
+  }
+
   private measure(): [number, number] {
     if (this.fixed) return [innerWidth, innerHeight];
     return [this.container.clientWidth, this.container.clientHeight];
@@ -358,15 +398,16 @@ export class Sakura {
 
   private paintBackdrop(w: number, h: number, rng: () => number): void {
     const g = this.bgCtx;
+    const { top, bot } = BACKDROP[this.opts.tree];
     const bg = g.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, css(BG_TOP));
-    bg.addColorStop(1, css(BG_BOT));
+    bg.addColorStop(0, css(top));
+    bg.addColorStop(1, css(bot));
     g.fillStyle = bg;
     g.fillRect(0, 0, w, h);
 
     // a faint pink haze behind the crown and a scatter of dim stars
     const glow = g.createRadialGradient(w / 2, h * 0.38, 0, w / 2, h * 0.38, Math.max(w, h) * 0.5);
-    glow.addColorStop(0, css(mix(BG_TOP, this.ramp[3], 0.1)));
+    glow.addColorStop(0, css(mix(top, this.ramp[3], 0.1)));
     glow.addColorStop(1, "rgba(0,0,0,0)");
     g.globalAlpha = 0.9;
     g.fillStyle = glow;
@@ -390,37 +431,49 @@ export class Sakura {
     const foliage = new Grid(cols, rows);
     const strands = new Grid(cols, rows);
 
-    const form: Form = this.opts.form === "random" ? (rng() < 0.45 ? "yoshino" : rng() < 0.55 ? "bush" : "shidare") : this.opts.form;
+    const { top: bgTop, bot: bgBot } = BACKDROP[this.opts.tree];
+    let groundRow = grid.h - 1;
     let sources: Point[];
 
     this.paintBackdrop(w, h, mulberry32(this.opts.seed ^ 0x9e3779b9));
     this.treeCtx.clearRect(0, 0, w, h);
-    if (this.opts.detail) {
-      sources = growDetailTree({ grid, foliage, strands, ramp, bgBottom: BG_BOT, rng }, form);
+    if (this.opts.tree === "bonsai") {
+      const style = this.opts.form === "random" ? BONSAI_STYLES[Math.floor(rng() * BONSAI_STYLES.length)] : (this.opts.form as BonsaiForm);
+      const grown = growBonsai({ grid, foliage, ramp, rng }, style);
+      sources = grown.sources;
+      groundRow = grown.groundRow;
     } else {
-      const rowBg: Rgb[] = [];
-      const rowHaze: Rgb[] = [];
-      for (let y = 0; y < grid.h; y++) {
-        const bg = mix(BG_TOP, BG_BOT, (y + 0.5) / grid.h);
-        rowBg.push(bg);
-        // Partial canopy cells fade toward this, not the raw backdrop: blending
-        // a tint straight into dark plum bleeds the hue out to grey.
-        rowHaze.push(mix(bg, ramp[6], 0.22));
+      const sakuraForms: Form[] = ["yoshino", "bush", "shidare"];
+      const form: Form = this.opts.form === "random" ? (rng() < 0.45 ? "yoshino" : rng() < 0.55 ? "bush" : "shidare") : sakuraForms.includes(this.opts.form as Form) ? (this.opts.form as Form) : "yoshino";
+      if (this.opts.detail) {
+        sources = growDetailTree({ grid, foliage, strands, ramp, bgBottom: bgBot, rng }, form);
+      } else {
+        const rowBg: Rgb[] = [];
+        const rowHaze: Rgb[] = [];
+        for (let y = 0; y < grid.h; y++) {
+          const bg = mix(bgTop, bgBot, (y + 0.5) / grid.h);
+          rowBg.push(bg);
+          // Partial canopy cells fade toward this, not the raw backdrop: blending
+          // a tint straight into dark plum bleeds the hue out to grey.
+          rowHaze.push(mix(bg, ramp[6], 0.22));
+        }
+        sources = growCellTree({ grid, foliage, strands, ramp, rowBg, rowHaze, aspect: cellH / cellW, rng }, form);
       }
-      sources = growCellTree({ grid, foliage, strands, ramp, rowBg, rowHaze, aspect: cellH / cellW, rng }, form);
     }
     drawGrid(this.treeCtx, grid, cellW, cellH);
     const dpr = Math.min(devicePixelRatio || 1, 2);
-    this.leaves.build(foliage, cellW, cellH, dpr, { mode: "mass", swing: 1, ambient: 1.0, tempo: 0.6 });
-    this.curtain.build(strands, cellW, cellH, dpr, { mode: "hang", swing: this.opts.detail ? 5 : 2.2 });
+    const bonsai = this.opts.tree === "bonsai";
+    this.leaves.build(foliage, cellW, cellH, dpr, { mode: "mass", swing: bonsai ? 0.8 : 1, ambient: bonsai ? 0.8 : 1.0, tempo: 0.6 });
+    this.curtain.build(strands, cellW, cellH, dpr, { mode: "hang", swing: this.fine ? 5 : 2.2 });
 
     const world = this.world;
     world.w = w;
     world.h = h;
-    world.groundY = Math.min((grid.h - 1) * cellH, h - 2);
+    world.groundY = Math.min(groundRow * cellH, h - 2);
     world.sources = sources.map(([x, y]) => [(x + 0.5) * cellW, (y + 0.5) * cellH]);
-    world.colors = ramp.slice(0, 4).map(css);
-    world.faded = css(mix(BG_BOT, ramp[2], 0.7));
+    // blossom drifts in pale tones; a bonsai drops leaves in its own mid greens
+    world.colors = ramp.slice(bonsai ? 2 : 0, bonsai ? 6 : 4).map(css);
+    world.faded = css(mix(bgBot, ramp[bonsai ? 5 : 2], 0.7));
   }
 
   private layout(): void {
@@ -436,9 +489,9 @@ export class Sakura {
     for (const g of [this.ctx, this.treeCtx, this.bgCtx]) g.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const world = this.world;
-    if (this.opts.detail) {
+    if (this.fine) {
       // square pixels, fine enough for the branching to read at any size
-      this.cellW = this.cellH = clamp(Math.round(Math.min(w, h * 1.6) / 320), 2, 6);
+      this.cellW = this.cellH = clamp(Math.round(Math.min(w, h * 1.6) / (this.opts.tree === "bonsai" ? 400 : 320)), 2, 6);
       world.u = Math.max(1, Math.round(this.cellW / 2));
     } else {
       this.cellW = clamp(Math.round(Math.min(w / 110, h / (46 * 1.78))), 5, 9);

@@ -5,8 +5,8 @@ wind, settle in the grass and fade. The tree is different every time you regrow 
 
 It is both an app you can open and a small package you can put on your own site (`npm i sakura-tree`).
 
-Plain TypeScript and Canvas 2D, **no runtime dependencies**. The whole app is about 23 KB gzipped
-(19 KB of it JavaScript), and the package on its own, without the control bar, is about 16 KB gzipped.
+Plain TypeScript and Canvas 2D, **no runtime dependencies**. The whole app is about 29 KB gzipped
+(25 KB of it JavaScript), and the package on its own, without the control bar, is about 21 KB gzipped.
 
 <p align="center">
   <img src="docs/demo.webp" alt="A 33 second tour of Sakura: a cherry blossom tree with wind, clicks, three kinds of cherry, blossom colours, weather, rain and cell mode" width="100%">
@@ -20,6 +20,11 @@ Plain TypeScript and Canvas 2D, **no runtime dependencies**. The whole app is ab
 
 - **Two looks.** *Cell mode* is blocky, in the style of a terminal. *Detail mode* is a fully
   branched pixel tree whose limbs fork and taper into twigs.
+- **Two trees.** A cherry in blossom, and a **bonsai**: a potted tree with a gnarled trunk, layered
+  pads of leaves, moss, and a glazed pot on a wooden table. Switch between them with the Tree
+  button or `t`. The wind, weather, rain, falling leaves and click ripples work the same on both.
+- **Five bonsai styles,** from the classical shapes: moyogi (S-curved), chokkan (straight), shakan
+  (slanting), kengai (cascade over the pot) and bunjin (tall and thin), or a random one.
 - **Three kinds of cherry:** yoshino (spreading), bush (a full, rounded cloud) and shidare
   (weeping), or a random one on every regrow. No two trees are alike.
 - **Alive.** Petals sway and tumble as they fall. Blossom clusters ripple at random spots, and the
@@ -27,7 +32,7 @@ Plain TypeScript and Canvas 2D, **no runtime dependencies**. The whole app is ab
 - **Wind** that wanders and gusts. Switch it off and the strands hang still and petals fall straight.
 - **Weather** that stays in the sky: clear, sunset, moonlight, overcast and mist, plus a rain switch
   that works on top of any of them. The tree and grass stay crisp in every weather.
-- **12 blossom colours,** from sakura pink to lavender, mint and gold.
+- **16 colours:** sakura pink to lavender, mint and gold for the blossom, and pine, juniper, maple and autumn leaves for the bonsai.
 - **Ambient mode** for use as a wallpaper: fullscreen, with the controls fading away when idle, and a
   frame-rate limit (24 / 30 / 45 / 60, with a live fps readout) to keep it light.
 - **Synthesised sound** (wind, rain and a soft chime on click). No audio files, and nothing loads
@@ -71,6 +76,9 @@ createSakura(document.body, { background: "transparent", interactive: false });
 ```html
 <script src="https://unpkg.com/sakura-tree"></script>
 <sakura-tree palette="sakura" detail></sakura-tree>
+
+<!-- a bonsai, in maple leaves -->
+<sakura-tree tree="bonsai" form="kengai" palette="maple"></sakura-tree>
 ```
 
 Change anything later with `sakura.set({ palette: "mint", rain: true })`, or by changing the
@@ -82,9 +90,10 @@ Every option is optional.
 
 | Option | Default | What it does |
 | --- | --- | --- |
-| `palette` | `"sakura"` | Blossom colour: `sakura` `blush` `rose` `peach` `coral` `gold` `lavender` `violet` `sky` `mint` `matcha` `white`. |
-| `form` | `"yoshino"` | Kind of cherry: `yoshino`, `bush`, `shidare` (weeping) or `random`. Changing it grows a new tree. |
-| `detail` | `false` | `true` for the finely branched pixel tree, `false` for the blocky cell style. |
+| `tree` | `"sakura"` | `"sakura"` (a cherry in blossom) or `"bonsai"` (a potted tree on a table). Switching grows a new tree, with that tree's own colour and form unless you pass them too. |
+| `palette` | `"sakura"` (`"pine"` for the bonsai) | Blossom or leaf colour: `sakura` `blush` `rose` `peach` `coral` `gold` `lavender` `violet` `sky` `mint` `matcha` `white` `pine` `juniper` `maple` `autumn`. |
+| `form` | `"yoshino"` (`"moyogi"` for the bonsai) | The cherry: `yoshino`, `bush`, `shidare` (weeping) or `random`. The bonsai: `moyogi`, `chokkan`, `shakan`, `kengai`, `bunjin` or `random`. Changing it grows a new tree. |
+| `detail` | `false` | `true` for the finely branched pixel tree, `false` for the blocky cell style. (The bonsai is always drawn finely.) |
 | `petals` | `5` | How many petals, 1 to 10. |
 | `wind` | `3` | Wind strength, 0 to 10, or `false` for still air. |
 | `weather` | `"clear"` | `clear`, `sunset`, `moonlight`, `overcast` or `mist`. |
@@ -126,7 +135,7 @@ Node 20 or newer is recommended.
 ## Controls
 
 Everything is in the bar at the bottom: Ambient, a live fps readout (click it to limit the frame rate), Minimise, a Gust button, dropdowns for
-weather, tree form and blossom colour, and switches for Detail, Wind, Rain and Sound. Minimise tucks
+weather, which tree, its style and its colour, and switches for Detail, Wind, Rain and Sound. Minimise tucks
 the bar away into a three-line menu button in the bottom right corner; tap it to bring the bar back, or
 drag it anywhere you like (it remembers where).
 
@@ -148,9 +157,10 @@ The keyboard works as well:
 | `space` | gust of wind |
 | `f` | Ambient mode: fullscreen, and the controls fade away after a couple of idle seconds (move to bring them back, `Esc` to leave) |
 | `r` | regrow the tree (a new shape every time) |
-| `s` | tree form: yoshino, bush, shidare, random |
-| `c` / `C` | next / previous blossom colour |
-| `d` | detail mode on / off |
+| `t` | switch between the sakura and the bonsai |
+| `s` | style of the current tree (cherry: yoshino, bush, shidare, random; bonsai: moyogi, chokkan, shakan, kengai, bunjin, random) |
+| `c` / `C` | next / previous blossom or leaf colour |
+| `d` | detail mode on / off (the sakura only) |
 | `p` / `P` | more / fewer petals (1 to 10) |
 | `a` | wind on / off |
 | `w` / `W` | more / less wind |
@@ -176,6 +186,7 @@ Everything is rule-based; nothing is a recorded animation.
 | --- | --- |
 | `src/tree.ts` | Cell mode. A trunk of tapered slices, limbs drawn as curves, then a canopy grown from a field of blobs at the limb tips, broken into clumps with value noise, shaded from the upper left and dotted with blossoms. Each form draws its proportions, lean and limbs from ranges. |
 | `src/treehd.ts` | Detail mode. Branches grown by *space colonisation* (attraction points fill the crown and the tree grows toward them), thickness from a pipe model, blossom as layered bundles. |
+| `src/bonsai.ts` | The bonsai. The trunk is drawn along a designed curve for each style (a Catmull-Rom spline through hand-set points), thick at the roots and tapering, lit from the upper left with bark streaks and a strip of bleached deadwood. Branches arch out in a cone, each carrying flat pads of foliage built from scalloped lobes, shaded top to bottom, with the pad behind darkened where a lower one overlaps it. Then the pot, soil, moss, stones, table and (for the cascade) a stand. |
 | `src/grid.ts`, `src/render.ts` | The tree is a grid of cells painted once onto a transparent canvas. Cells on the outline fade into whatever sky is behind them. |
 | `src/petals.ts`, `src/wind.ts` | Petals fall from the blossom with sway and tumble, catch a wandering wind plus gusts, lie on the ground for a few seconds and fade. |
 | `src/sway.ts` | The moving parts of the tree live on their own layers: the blossom clusters (random local ripples) and the hanging strands (a wave that travels down each one). Each frame a layer is drawn a band of rows at a time, every column shifted sideways by its own amount. |

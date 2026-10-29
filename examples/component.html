@@ -4,7 +4,7 @@
 <title>sakura-tree: as a web component</title>
 <style>
   body { margin: 0; background: #1b1523; color: #f5e9f0; font: 16px system-ui, sans-serif; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; padding: 12px; }
   sakura-tree { height: 380px; border-radius: 12px; }
   .bar { padding: 0 12px 12px; display: flex; gap: 8px; flex-wrap: wrap; }
   button { font: inherit; padding: 8px 14px; border-radius: 999px; border: 0; background: #f0a3c0; cursor: pointer; }
@@ -13,6 +13,7 @@
 <div class="row">
   <sakura-tree id="a" palette="peach" form="bush" weather="sunset"></sakura-tree>
   <sakura-tree id="b" palette="mint" form="shidare" weather="mist" rain detail seed="7"></sakura-tree>
+  <sakura-tree id="c" tree="bonsai" form="kengai" palette="maple" weather="moonlight" seed="3"></sakura-tree>
 </div>
 <div class="bar">
   <button id="gust">Gust</button>

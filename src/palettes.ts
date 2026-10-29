@@ -14,6 +14,11 @@ const ANCHORS = {
   mint: ["#e2fff0", "#4cc796", "#1a6a48"],
   matcha: ["#eaf6d4", "#86b848", "#35591a"],
   white: ["#ffffff", "#f3b6cd", "#a04b6c"],
+  // leaf colours, for the bonsai
+  pine: ["#e6f6d8", "#5c9e4a", "#1c4424"],
+  juniper: ["#e0f5ee", "#4f9e86", "#164a3e"],
+  maple: ["#ffe3d3", "#e5532f", "#66150f"],
+  autumn: ["#fff0c8", "#e89a2b", "#733a0c"],
 } satisfies Record<string, [string, string, string]>;
 
 export type PaletteName = keyof typeof ANCHORS;
