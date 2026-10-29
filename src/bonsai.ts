@@ -5,12 +5,22 @@ import type { Rng } from "./rng";
 import type { Point } from "./tree";
 
 // A bonsai in single pixels: a trunk drawn along a designed curve (each classic style has its own),
-// branches that carry flat pads of foliage, and a glazed pot with soil and moss on a wooden table.
+// branches that carry flat pads of foliage, and a pot (or a slab of stone) on a wooden table.
 // The wood goes in `grid`, the foliage in `foliage` (so it can sway), and the pot and table are
 // part of the ground.
 
-export type BonsaiForm = "moyogi" | "chokkan" | "shakan" | "kengai" | "bunjin";
-export const BONSAI_STYLES: readonly BonsaiForm[] = ["moyogi", "chokkan", "shakan", "kengai", "bunjin"];
+export type BonsaiForm =
+  | "moyogi" // informal upright: an S-curved trunk
+  | "chokkan" // formal upright: straight, in tiers
+  | "shakan" // slanting
+  | "fukinagashi" // windswept: everything streams to one side
+  | "sokan" // twin trunk
+  | "hokidachi" // broom: a straight trunk under a round crown
+  | "ishitsuki" // on a slab of stone, with roots gripping it
+  | "hankengai" // semi-cascade
+  | "kengai" // cascade
+  | "bunjin"; // literati: tall, thin, bare
+export const BONSAI_STYLES: readonly BonsaiForm[] = ["moyogi", "chokkan", "shakan", "fukinagashi", "sokan", "hokidachi", "ishitsuki", "hankengai", "kengai", "bunjin"];
 
 export interface BonsaiEnv {
   grid: Grid; // square cells: one cell is one pixel
@@ -26,10 +36,28 @@ export interface BonsaiResult {
 
 const BARK = ["#271a13", "#46321f", "#6d4d36", "#977655"].map(hex);
 const DEAD = ["#8d7e6d", "#b5a791", "#d9cdb7"].map(hex); // bleached deadwood
-const POT = { dark: hex("#1c2733"), mid: hex("#33495e"), light: hex("#58788f"), rim: hex("#86a6bd"), rimDark: hex("#4a667d") };
+
+interface PotColors {
+  dark: Rgb;
+  mid: Rgb;
+  light: Rgb;
+  rim: Rgb;
+  rimDark: Rgb;
+}
+const col = (d: string, m: string, l: string, r: string, rd: string): PotColors => ({ dark: hex(d), mid: hex(m), light: hex(l), rim: hex(r), rimDark: hex(rd) });
+const POTS = {
+  blue: col("#1c2733", "#33495e", "#58788f", "#86a6bd", "#4a667d"),
+  clay: col("#3a1c12", "#7a3d28", "#a75a3a", "#cf9068", "#5a2c1c"),
+  green: col("#18291f", "#2f5a47", "#4f8a6c", "#82bb9e", "#27473a"),
+  ash: col("#26262b", "#4a4a52", "#767680", "#a6a6af", "#3a3a42"),
+};
+type PotName = keyof typeof POTS;
+
 const SOIL = ["#241b15", "#33271f", "#46372b"].map(hex);
 const MOSS = ["#2b5233", "#417542", "#62994f", "#8fc067"].map(hex);
 const STONE = ["#6b6b72", "#8e8e95", "#b4b4b9"].map(hex);
+const ROCK = ["#2f2f36", "#4a4a53", "#6c6c76", "#92929c", "#b9b9c1"].map(hex);
+const GRAVEL = ["#6e4c33", "#9a6c45", "#c08d5c", "#dba874"].map(hex);
 const TABLE_TOP = ["#7a5b3b", "#8c6c47", "#a38158"].map(hex);
 const TABLE_FACE = ["#3b2a1a", "#4d3722", "#614630"].map(hex);
 const STAND = ["#1f1712", "#33261d", "#54402f"].map(hex);
@@ -68,9 +96,21 @@ function quad(a: Point, q: Point, b: Point, n: number): Point[] {
   return out;
 }
 
-interface Style {
-  /** The trunk's path as (sideways, up) in tree heights from the roots. */
-  path: [number, number][];
+/** How the tree stands: the pot, the stand and how much room the tree has. */
+interface Setting {
+  pot: PotName | "rock";
+  potH: number; // pot height, as a share of the whole picture
+  potW: number; // pot width, in pot heights (for a rock: its width as a share of the picture)
+  oval?: boolean; // a rounder pot
+  stand?: number; // height of a stand under the pot, as a share of the whole picture
+  height: number; // how much of the picture the tree itself may use (a cascade falls below the pot)
+  pull: number; // how far the pot moves the other way from a leaning tree, in tree heights
+  root: number; // how far the trunk's roots start from the middle of the pot, in pot widths (towards the lean)
+}
+
+/** The trunk and its branches. */
+interface Limb {
+  path: [number, number][]; // the trunk's path as (sideways, up) in tree heights from the roots
   branches: number;
   t0: number; // first and last branch, as a share of the trunk's length
   t1: number;
@@ -81,45 +121,112 @@ interface Style {
   apex: number; // size of the top pad
   droop: number; // how far the low branches sag at the tip
   shari: boolean; // a strip of bleached deadwood down the trunk
+  fill?: number; // extra pads packed in beside each branch's own, 0 to 2
+  elev?: [number, number]; // how high a branch tip rises, at the lowest and highest branch (radians)
+  oneSide?: boolean; // every branch goes the way the tree leans (windswept)
+  cone?: number; // how fast the branches get shorter going up, 0 to 1
+  pointed?: boolean; // a narrow, upright top pad
+}
+
+interface Style {
+  set: Setting;
+  limb?: Limb;
 }
 
 const STYLES: Record<BonsaiForm, Style> = {
   // informal upright: the classic S-shaped trunk
   moyogi: {
-    path: [[0, 0], [0.1, 0.18], [-0.07, 0.42], [0.08, 0.68], [-0.01, 0.98]],
-    branches: 6, t0: 0.3, t1: 0.82, reach: 0.34, trunk: 0.036, taper: 0.8, pad: 1, apex: 1, droop: 0.14, shari: true,
+    set: { pot: "blue", potH: 0.125, potW: 3.9, height: 1, pull: 0, root: 0 },
+    limb: {
+      path: [[0, 0], [0.1, 0.18], [-0.07, 0.42], [0.08, 0.68], [-0.01, 0.98]],
+      branches: 6, t0: 0.3, t1: 0.82, reach: 0.34, trunk: 0.036, taper: 0.8, pad: 1, apex: 1, droop: 0.14, shari: true,
+    },
   },
-  // formal upright: straight and tapering, branches in tiers
+  // formal upright: a straight, thick, tapering trunk and branches in even tiers, like a pine
   chokkan: {
-    path: [[0, 0], [0.006, 0.33], [-0.006, 0.66], [0.004, 0.98]],
-    branches: 7, t0: 0.26, t1: 0.84, reach: 0.31, trunk: 0.038, taper: 0.82, pad: 0.95, apex: 1, droop: 0.12, shari: false,
+    set: { pot: "clay", potH: 0.14, potW: 3.1, height: 1, pull: 0, root: 0 },
+    limb: {
+      path: [[0, 0], [0.004, 0.33], [-0.004, 0.66], [0.003, 0.99]],
+      branches: 9, t0: 0.2, t1: 0.86, reach: 0.31, trunk: 0.048, taper: 0.86, pad: 1.08, apex: 0.9, droop: 0.1, shari: false,
+      fill: 1, cone: 0.86, pointed: true, elev: [-0.1, 0.3],
+    },
   },
   // slanting: leans hard to one side, as if bent by the wind
   shakan: {
-    path: [[0, 0], [0.05, 0.27], [0.15, 0.53], [0.27, 0.77], [0.38, 0.95]],
-    branches: 6, t0: 0.25, t1: 0.86, reach: 0.33, trunk: 0.038, taper: 0.8, pad: 1, apex: 1.05, droop: 0.13, shari: true,
+    set: { pot: "green", potH: 0.115, potW: 3.6, height: 1, pull: 0.13, root: 0.1 },
+    limb: {
+      path: [[0, 0], [0.05, 0.27], [0.15, 0.53], [0.27, 0.77], [0.38, 0.95]],
+      branches: 7, t0: 0.25, t1: 0.88, reach: 0.34, trunk: 0.042, taper: 0.8, pad: 1.1, apex: 1.05, droop: 0.13, shari: true, fill: 1,
+    },
   },
-  // cascade: grows up, then pours over the edge of the pot
+  // windswept: the trunk is bent and every branch streams the same way, as if from a gale
+  fukinagashi: {
+    set: { pot: "clay", potH: 0.105, potW: 3.7, height: 1, pull: 0.15, root: 0.12 },
+    limb: {
+      path: [[0, 0], [0.04, 0.2], [-0.02, 0.4], [0.06, 0.62], [0.16, 0.8], [0.27, 0.9]],
+      branches: 7, t0: 0.36, t1: 0.95, reach: 0.34, trunk: 0.044, taper: 0.8, pad: 0.82, apex: 0.85, droop: 0.0, shari: true,
+      oneSide: true, elev: [0.0, 0.12], cone: 0.15,
+    },
+  },
+  // twin trunk: two trunks from one root, a tall one and a shorter one leaning away
+  sokan: {
+    set: { pot: "blue", potH: 0.11, potW: 4.4, height: 1, pull: 0, root: 0 },
+    limb: {
+      path: [[0, 0], [0.04, 0.22], [-0.02, 0.5], [0.05, 0.76], [0.01, 0.98]],
+      branches: 6, t0: 0.32, t1: 0.84, reach: 0.3, trunk: 0.036, taper: 0.8, pad: 1, apex: 1, droop: 0.12, shari: true, fill: 1,
+    },
+  },
+  // broom: a straight trunk that splits like a fan into a round crown
+  hokidachi: {
+    set: { pot: "ash", potH: 0.115, potW: 3.2, oval: true, height: 1, pull: 0, root: 0 },
+  },
+  // on a stone: thick, twisted, roots gripping the rock, under a broad crown
+  ishitsuki: {
+    set: { pot: "rock", potH: 0.14, potW: 0.66, height: 1, pull: 0.06, root: 0.2 },
+  },
+  // semi-cascade: the foliage spills sideways to about the level of the rim
+  hankengai: {
+    set: { pot: "clay", potH: 0.17, potW: 2.4, height: 0.86, pull: 0.12, root: 0.2 },
+  },
+  // cascade: grows up, then pours over the edge of a tall pot and falls below it
   kengai: {
-    path: [[0, 0], [0.03, 0.3], [0.13, 0.55], [0.27, 0.6], [0.38, 0.4], [0.4, 0.1], [0.37, -0.2]],
-    branches: 8, t0: 0.2, t1: 0.95, reach: 0.25, trunk: 0.036, taper: 0.7, pad: 0.95, apex: 1.1, droop: 0.1, shari: false,
+    set: { pot: "blue", potH: 0.2, potW: 1.7, stand: 0.18, height: 0.8, pull: 0.08, root: 0.12 },
   },
   // literati: tall, thin and bare, with foliage only near the top
   bunjin: {
-    path: [[0, 0], [-0.06, 0.22], [0.05, 0.46], [-0.07, 0.72], [0.02, 0.98]],
-    branches: 5, t0: 0.46, t1: 0.9, reach: 0.25, trunk: 0.027, taper: 0.7, pad: 0.95, apex: 1.15, droop: 0.06, shari: false,
+    set: { pot: "ash", potH: 0.085, potW: 2.9, height: 1, pull: 0, root: 0 },
+    limb: {
+      path: [[0, 0], [-0.06, 0.22], [0.05, 0.46], [-0.07, 0.72], [0.02, 0.98]],
+      branches: 5, t0: 0.46, t1: 0.9, reach: 0.25, trunk: 0.027, taper: 0.7, pad: 0.95, apex: 1.15, droop: 0.06, shari: false,
+    },
   },
 };
+
+interface Pad {
+  x: number;
+  y: number;
+  rx: number;
+  ry: number;
+}
+
+interface Crown {
+  x: number;
+  y: number;
+  rx: number;
+  ry: number; // for light across the whole crown, not just across each pad
+}
 
 export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   const { grid, foliage, ramp, rng } = env;
   const W = grid.w;
   const H = grid.h;
-  const spec = STYLES[form];
+  const style = STYLES[form];
+  const set = style.set;
   const rand = (a: number, b: number): number => a + rng() * (b - a);
   const sources: Point[] = [];
   const seed = rng() * 500;
   const dir = rng() < 0.5 ? -1 : 1; // which way the tree leans, or the cascade falls
+  const rock = set.pot === "rock";
 
   const put = (x: number, y: number, c: Rgb, kind: number): void => {
     grid.set(x, y, { glyph: G_BLOCK, color: c, bg: c, cov: 1, kind });
@@ -132,18 +239,18 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   const potBase = surfaceY + Math.round(topPlaneH * 0.5); // the row the pot (or its stand) stands on
   const avail = potBase - Math.max(3, Math.round(H * 0.04));
   const totalH = Math.min(avail, W * 1.0);
-  const cascade = form === "kengai";
-  const standH = cascade ? Math.round(totalH * 0.2) : 0;
-  const potH = Math.max(6, Math.round(totalH * 0.125));
-  const potW = Math.min(Math.round(potH * (cascade ? 3.3 : 3.9)), Math.round(W * 0.5));
-  const treeH = cascade ? totalH * 0.8 : totalH - potH - standH;
+  const standH = set.stand ? Math.round(totalH * set.stand) : 0;
+  const potH = Math.max(6, Math.round(totalH * set.potH));
+  const potW = rock ? Math.min(Math.round(totalH * set.potW), Math.round(W * 0.7)) : Math.min(Math.round(potH * set.potW), Math.round(W * 0.5));
+  const treeH = set.height < 1 ? totalH * set.height : totalH - potH - standH;
   const cx0 = W / 2;
   // A leaning tree or a cascade pulls the picture to one side: the pot moves the other way, so the whole thing stays centred.
-  const pull = form === "shakan" ? 0.13 : cascade ? 0.09 : 0;
-  const cxp = cx0 - dir * treeH * pull; // the middle of the pot
-  const bx = cxp - dir * (form === "shakan" ? potW * 0.1 : cascade ? potW * 0.2 : 0); // where the trunk leaves the soil
+  const cxp = cx0 - dir * treeH * set.pull; // the middle of the pot
+  const bx = cxp + dir * potW * set.root; // where the trunk leaves the soil
   const potBottom = standH ? potBase - standH - 1 : potBase;
-  const y0 = potBottom - potH + 1; // the top of the pot's rim
+  const y0 = potBottom - potH + 1; // the top of the pot's rim, or of the stone
+  const left = cxp - potW / 2;
+  const right = cxp + potW / 2;
 
   // ---- table ----------------------------------------------------------------
   for (let y = surfaceY; y < H; y++) {
@@ -165,7 +272,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   }
 
   // ---- a soft shadow under the pot ----------------------------------------
-  const shadowW = potW * 0.62 + (standH ? potW * 0.2 : 0);
+  const shadowW = potW * 0.62 + (standH ? potW * 0.2 : 0) + (rock ? potW * 0.1 : 0);
   for (let y = surfaceY; y < surfaceY + topPlaneH; y++) {
     for (let x = Math.floor(cxp - shadowW - 4); x <= Math.ceil(cxp + shadowW + 4); x++) {
       const dx = (x - cxp) / (shadowW + 4);
@@ -182,7 +289,7 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     const slabH = Math.max(2, Math.round(standH * 0.12));
     for (let y = potBase - standH; y <= potBase; y++) {
       const slab = y < potBase - standH + slabH;
-      const sw = potW * (slab ? 0.56 : 0.36);
+      const sw = potW * (slab ? 0.8 : 0.5);
       const foot = y > potBase - Math.max(2, Math.round(standH * 0.1));
       const w2 = foot ? sw * 1.18 : sw;
       for (let x = Math.ceil(cxp - w2); x <= Math.floor(cxp + w2); x++) {
@@ -199,56 +306,90 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   }
 
   // ---- the pot --------------------------------------------------------------
-  const left = cxp - potW / 2;
-  const right = cxp + potW / 2;
-  const rimH = Math.max(2, Math.round(potH * 0.2));
-  const feetH = Math.max(1, Math.round(potH * 0.13));
-  for (let y = y0; y <= potBottom; y++) {
-    const row = (y - y0) / Math.max(potH - 1, 1);
-    const inRim = y < y0 + rimH;
-    const inset = inRim ? 0 : potW * 0.035 + potW * 0.04 * row;
-    const l = Math.ceil(left + inset);
-    const r = Math.floor(right - inset);
-    const onFeet = y > potBottom - feetH;
-    for (let x = l; x <= r; x++) {
-      const u = (x - l) / Math.max(r - l, 1);
-      if (onFeet && !(u < 0.2 || u > 0.8)) continue; // the gap between the feet
-      let c: Rgb;
-      if (inRim) {
-        c = y === y0 ? POT.rim : y === y0 + rimH - 1 ? POT.rimDark : POT.light;
-        if (u > 0.88) c = mix(c, POT.dark, 0.5);
-      } else {
-        c = u < 0.07 ? POT.light : u < 0.26 ? mix(POT.light, POT.mid, 0.55) : u > 0.86 ? POT.dark : u > 0.7 ? mix(POT.mid, POT.dark, 0.5) : POT.mid;
-        if (u > 0.11 && u < 0.135 && row > 0.3 && row < 0.78) c = POT.rim; // a streak of glaze
-        c = mix(c, POT.dark, row * 0.35);
-        if (row > 0.82 && !onFeet) c = mix(c, [0, 0, 0], 0.15);
+  if (!rock) {
+    const P = POTS[set.pot as PotName];
+    const rimH = Math.max(2, Math.round(potH * 0.2));
+    const feetH = Math.max(1, Math.round(potH * 0.13));
+    for (let y = y0; y <= potBottom; y++) {
+      const row = (y - y0) / Math.max(potH - 1, 1);
+      const inRim = y < y0 + rimH;
+      const inset = inRim ? 0 : set.oval ? potW * (0.04 + 0.16 * Math.pow(row, 1.6)) : potW * 0.035 + potW * 0.04 * row;
+      const l = Math.ceil(left + inset);
+      const r = Math.floor(right - inset);
+      const onFeet = y > potBottom - feetH;
+      for (let x = l; x <= r; x++) {
+        const u = (x - l) / Math.max(r - l, 1);
+        if (onFeet && !(u < 0.2 || u > 0.8)) continue; // the gap between the feet
+        let c: Rgb;
+        if (inRim) {
+          c = y === y0 ? P.rim : y === y0 + rimH - 1 ? P.rimDark : P.light;
+          if (u > 0.88) c = mix(c, P.dark, 0.5);
+        } else {
+          c = u < 0.07 ? P.light : u < 0.26 ? mix(P.light, P.mid, 0.55) : u > 0.86 ? P.dark : u > 0.7 ? mix(P.mid, P.dark, 0.5) : P.mid;
+          if (u > 0.11 && u < 0.135 && row > 0.3 && row < 0.78) c = P.rim; // a streak of glaze
+          c = mix(c, P.dark, row * 0.35);
+          if (row > 0.82 && !onFeet) c = mix(c, [0, 0, 0], 0.15);
+        }
+        put(x, y, c, K_GROUND);
       }
-      put(x, y, c, K_GROUND);
     }
-  }
 
-  // ---- soil, moss and a few stones -----------------------------------------
-  const sl = Math.ceil(left + potW * 0.05);
-  const sr = Math.floor(right - potW * 0.05);
-  for (let x = sl; x <= sr; x++) {
-    const edge = Math.min(x - sl, sr - x) / Math.max(potW * 0.12, 1);
-    const mound = Math.round((1.2 + noise2(x * 0.16 + seed, 1.7) * 2.4) * smooth(edge + 0.25));
-    for (let k = 0; k <= mound + 1; k++) {
-      const y = y0 + 1 - k;
-      const top = k >= mound;
-      const m = noise2(x * 0.22 + seed, y * 0.5 + 9) + (rng() - 0.5) * 0.25;
-      let c = SOIL[Math.floor(rng() * 3)];
-      if (top && m > 0.38) c = MOSS[clamp(Math.floor((m - 0.38) * 7 + rng() * 1.5), 0, 3)];
-      else if (k >= mound - 1 && m > 0.55) c = MOSS[1];
-      put(x, y, c, K_GROUND);
+    // soil, moss and a few stones
+    const sl = Math.ceil(left + potW * 0.05);
+    const sr = Math.floor(right - potW * 0.05);
+    for (let x = sl; x <= sr; x++) {
+      const edge = Math.min(x - sl, sr - x) / Math.max(potW * 0.12, 1);
+      const mound = Math.round((1.2 + noise2(x * 0.16 + seed, 1.7) * 2.4) * smooth(edge + 0.25));
+      for (let k = 0; k <= mound + 1; k++) {
+        const y = y0 + 1 - k;
+        const top = k >= mound;
+        const m = noise2(x * 0.22 + seed, y * 0.5 + 9) + (rng() - 0.5) * 0.25;
+        let c = SOIL[Math.floor(rng() * 3)];
+        if (top && m > 0.38) c = MOSS[clamp(Math.floor((m - 0.38) * 7 + rng() * 1.5), 0, 3)];
+        else if (k >= mound - 1 && m > 0.55) c = MOSS[1];
+        put(x, y, c, K_GROUND);
+      }
     }
-  }
-  for (let i = 0; i < 3 + Math.round(potW / 40); i++) {
-    const sx = Math.round(lerp(sl + 3, sr - 3, rng()));
-    if (Math.abs(sx - bx) < potH * 0.8) continue; // not on the roots
-    const sw = Math.round(rand(1.5, 3));
-    for (let k = 0; k < sw; k++) put(sx + k, y0 - 1, STONE[k === 0 ? 2 : 1], K_GROUND);
-    for (let k = 0; k < sw + 1; k++) put(sx + k - 0, y0, STONE[0], K_GROUND);
+    for (let i = 0; i < 3 + Math.round(potW / 40); i++) {
+      const sx = Math.round(lerp(sl + 3, sr - 3, rng()));
+      if (Math.abs(sx - bx) < potH * 0.8) continue; // not on the roots
+      const sw = Math.round(rand(1.5, 3));
+      for (let k = 0; k < sw; k++) put(sx + k, y0 - 1, STONE[k === 0 ? 2 : 1], K_GROUND);
+      for (let k = 0; k < sw + 1; k++) put(sx + k, y0, STONE[0], K_GROUND);
+    }
+  } else {
+    // ---- a slab of stone, topped with gravel and moss --------------------------
+    const topH = Math.max(3, Math.round(potH * 0.3)); // the top surface, seen at a slant
+    const hw = potW / 2;
+    for (let x = Math.floor(left) - 1; x <= Math.ceil(right) + 1; x++) {
+      const u = (x - cxp) / hw;
+      if (Math.abs(u) > 1) continue;
+      const au = Math.abs(u);
+      const lift = Math.round(Math.pow(au, 4) * potH * 0.35 + (noise2(x * 0.12 + seed, 4.4) - 0.5) * 2.2); // rounded, uneven ends
+      const top = y0 + lift;
+      const bottom = potBottom - Math.round(Math.pow(au, 5) * potH * 0.3 + noise2(x * 0.2 + seed, 8.1) * 1.6);
+      for (let y = top; y <= bottom; y++) {
+        let c: Rgb;
+        if (y < top + topH) {
+          // gravel, with moss in patches
+          const n = noise2(x * 0.5 + seed, y * 0.9);
+          const m = noise2(x * 0.1 + seed, y * 0.4 + 5) + (rng() - 0.5) * 0.3;
+          c = GRAVEL[clamp(Math.floor(n * 4 + rng() * 1.2 - 0.3), 0, 3)];
+          if (m > 0.62) c = MOSS[clamp(Math.floor((m - 0.62) * 9 + rng()), 0, 3)];
+          if (y === top) c = mix(c, [255, 255, 255], 0.12);
+        } else {
+          // the rock face: layered, lit on the left
+          const row = (y - top - topH) / Math.max(bottom - top - topH, 1);
+          const strata = noise2(x * 0.06 + seed, y * 0.7 + 2) + Math.sin(y * 0.9 + noise2(x * 0.05, y * 0.2) * 5) * 0.12;
+          let tone = clamp(Math.floor(strata * 4 + (1 - u) * 0.9 - row * 1.3), 0, 4);
+          if (rng() < 0.04) tone = clamp(tone - 1, 0, 4);
+          c = ROCK[tone];
+          if (u > 0.82) c = mix(c, ROCK[0], 0.5);
+          if (y === bottom || y === bottom - 1) c = mix(c, [0, 0, 0], 0.4);
+        }
+        put(x, y, c, K_GROUND);
+      }
+    }
   }
 
   // ---- wood -----------------------------------------------------------------
@@ -260,6 +401,8 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
   interface Brush {
     vertical: boolean; // bark runs along the limb: down a trunk, across a branch
     shari?: { from: number; to: number; side: number };
+    rough?: number; // 0 smooth, 1 deeply furrowed (an old, gnarled trunk)
+    clip?: number; // paint nothing below this row (a trunk ends at the top of the stone)
   }
 
   const soilLine = y0 + 1; // wood stops here above the pot: below it is the pot itself (a cascade may hang down beside it)
@@ -268,7 +411,8 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     for (let py = Math.floor(y - rr); py <= Math.ceil(y + rr); py++) {
       for (let px = Math.floor(x - rr); px <= Math.ceil(x + rr); px++) {
         if (px < 0 || py < 0 || px >= W || py >= H) continue;
-        if (py > soilLine && px >= left - 1 && px <= right + 1 && py <= potBottom) continue;
+        if (b.clip !== undefined && py > b.clip) continue;
+        if (!rock && py > soilLine && px >= left - 1 && px <= right + 1 && py <= potBottom) continue;
         const dx = px + 0.5 - x;
         const dy = py + 0.5 - y;
         if (dx * dx + dy * dy > rr * rr) continue;
@@ -280,8 +424,11 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
         let tone = rr < 1 ? 1 : lit > 0.45 ? 3 : lit > -0.05 ? 2 : lit > -0.55 ? 1 : 0;
         if (rr >= 1.8) {
           const n = b.vertical ? noise2(px * 0.8 + seed, py * 0.13 + seed) : noise2(px * 0.13 + seed, py * 0.8 + seed);
-          if (n > 0.72) tone = Math.max(0, tone - 1);
-          else if (n < 0.2) tone = Math.min(3, tone + 1);
+          const lo = 0.2 + 0.12 * (b.rough ?? 0);
+          const hi2 = 0.72 - 0.1 * (b.rough ?? 0);
+          if (n > hi2) tone = Math.max(0, tone - 1);
+          else if (n < lo) tone = Math.min(3, tone + 1);
+          if ((b.rough ?? 0) > 0.5 && rr > 3 && noise2(px * 0.35 + seed, py * 0.35 + 11) > 0.8) tone = Math.max(0, tone - 1); // knots
         }
         let c = BARK[tone];
         const sh = b.shari;
@@ -314,87 +461,228 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
     }
   };
 
-  // The trunk follows the style's path, mirrored to the side the tree leans.
   const base: Point = [bx, y0];
-  let path = spec.path;
-  if (cascade) {
-    // up out of the soil, a short crest, then over the rim and down past the stand, outside the pot
-    const out = (cxp + dir * potW * 0.72 - bx) * dir / treeH; // how far out the fall is, in tree heights
-    path = [[0, 0], [0.025, 0.17], [0.1, 0.36], [out * 0.55, 0.44], [out * 0.92, 0.3], [out, 0.05], [out + 0.015, -0.18], [out - 0.01, -0.38]];
-  }
-  const ctrl: Point[] = path.map(([dx, up]) => [base[0] + dir * dx * treeH + (dx === 0 && up === 0 ? 0 : rand(-0.004, 0.004) * treeH), base[1] - up * treeH * 0.88]);
-  const trunk = spline(ctrl, 90);
-  const trunkR = Math.max(1.6, treeH * spec.trunk);
-  const radiusAt = (u: number): number => Math.max(0.8, trunkR * (1 - spec.taper * Math.pow(u, 0.6)) * (1 + 0.5 * Math.exp(-u * 22)));
-  const trunkAt = (u: number): Point => trunk[clamp(Math.round(u * (trunk.length - 1)), 0, trunk.length - 1)];
-
-  // surface roots spreading over the soil
-  const nRoots = 5 + Math.floor(rng() * 3);
-  for (let i = 0; i < nRoots; i++) {
-    const side = i % 2 ? 1 : -1;
-    const len = trunkR * rand(1.3, 2.3) * (i < 2 ? 1 : 0.75);
-    const sx = base[0] + side * trunkR * 0.3;
-    const pts: Point[] = [
-      [sx, base[1] - trunkR * 0.5],
-      [sx + side * len * 0.55, base[1] - trunkR * 0.05 + rand(-0.5, 0.5)],
-      [sx + side * len, y0 + 0.8],
-    ];
-    stroke(spline(pts, 12), (u) => trunkR * lerp(0.6, 0.15, u), { vertical: false });
-  }
-  stroke(trunk, radiusAt, { vertical: true, shari: spec.shari ? { from: rand(0.06, 0.16), to: rand(0.45, 0.6), side: -dir } : undefined });
-
-  // ---- branches and foliage pads --------------------------------------------
-  interface Pad {
-    x: number;
-    y: number;
-    rx: number;
-    ry: number;
-  }
   const pads: Pad[] = [];
-  const crownR = treeH * spec.reach;
-  let side = rng() < 0.5 ? -1 : 1;
-  for (let i = 0; i < spec.branches; i++) {
-    const f = spec.branches === 1 ? 0.5 : i / (spec.branches - 1);
-    const t = lerp(spec.t0, spec.t1, f) + rand(-0.02, 0.02);
-    const [tx, ty] = trunkAt(t);
-    side = -side;
-    // a conical outline: low branches reach far, high ones are short
-    let L = crownR * (1 - 0.74 * smooth((t - 0.2) / 0.8)) * rand(0.88, 1.12);
-    if (form === "shakan") L *= side === dir ? 1.22 : 0.72; // the long limbs hang on the downhill side
-    if (cascade) L *= 0.55 + 0.7 * (1 - Math.abs(t - 0.45)); // a tree that pours over the pot keeps its branches short
-    if (form === "bunjin") L *= 0.8 + 0.4 * rng();
-    const phi = lerp(-0.12, 0.34, t) + rand(-0.06, 0.06); // elevation of the tip
-    const r0 = Math.max(1, radiusAt(t) * 0.6);
-    const p0: Point = [tx + side * radiusAt(t) * 0.5, ty];
-    const p1: Point = [p0[0] + side * L * Math.cos(phi), p0[1] - L * Math.sin(phi) + L * spec.droop * (1 - t)];
-    const q: Point = [lerp(p0[0], p1[0], 0.5), Math.min(p0[1], p1[1]) - L * 0.12];
-    const path = quad(p0, q, p1, 28);
-    stroke(path, (u) => lerp(r0, Math.max(0.7, r0 * 0.3), u), { vertical: false });
+  let crown: Crown | null = null; // set for a tree whose crown is one dome rather than separate tiers
+  let lowerFirst = false; // draw the lower pads first, so the upper ones sit on top of them (a dome)
 
-    // pads: one at the tip, a smaller one partway along, tied on by a twig
-    const rx = clamp(L * 0.58 * spec.pad, treeH * 0.05, treeH * 0.2);
-    const tip: Pad = { x: p1[0], y: p1[1] - rx * 0.12, rx, ry: rx * rand(0.38, 0.46) };
-    pads.push(tip);
-    if (L > treeH * 0.13) {
-      const m = path[Math.round(path.length * 0.55)];
-      const mp: Pad = { x: m[0], y: m[1] - rx * 0.3, rx: rx * 0.72, ry: rx * 0.3 };
-      pads.push(mp);
-      stroke([path[Math.round(path.length * 0.4)], [mp.x, mp.y + mp.ry * 0.6]], () => 0.8, { vertical: true });
+  const surfaceRoots = (trunkR: number, n: number, spread: number): void => {
+    for (let i = 0; i < n; i++) {
+      const side = i % 2 ? 1 : -1;
+      const len = trunkR * rand(1.3, 2.3) * spread * (i < 2 ? 1 : 0.75);
+      const sx = base[0] + side * trunkR * 0.3;
+      const pts: Point[] = [
+        [sx, base[1] - trunkR * 0.5],
+        [sx + side * len * 0.55, base[1] - trunkR * 0.05 + rand(-0.5, 0.5)],
+        [sx + side * len, y0 + 0.8],
+      ];
+      stroke(spline(pts, 12), (u) => trunkR * lerp(0.6, 0.15, u), { vertical: false });
     }
-  }
-  // the top of the tree
-  const top = trunk[trunk.length - 1];
-  const apexR = Math.max(treeH * 0.11 * spec.apex, 5);
-  const apexLean = form === "shakan" ? dir * apexR * 0.15 : 0;
-  pads.push({ x: top[0] + apexLean, y: top[1] - apexR * (cascade ? -0.05 : 0.18), rx: apexR, ry: apexR * (cascade ? 0.62 : 0.52) });
-  if (cascade) {
-    // a second mass where the trunk crests, before it falls
-    const crest = trunkAt(0.42);
-    pads.push({ x: crest[0], y: crest[1] - apexR * 0.4, rx: apexR * 1.15, ry: apexR * 0.5 });
+  };
+
+  // A trunk with its branches: grows the wood and adds the foliage pads it carries.
+  const grow = (o: { ctrl: Point[]; limb: Limb; treeH: number; trunkR: number; leanDir: number; main: boolean; padMul?: number }): { trunk: Point[]; trunkAt: (u: number) => Point; radiusAt: (u: number) => number } => {
+    const { limb, treeH: tH, trunkR, leanDir } = o;
+    const trunk = spline(o.ctrl, 90);
+    const radiusAt = (u: number): number => Math.max(0.8, trunkR * (1 - limb.taper * Math.pow(u, 0.6)) * (1 + 0.5 * Math.exp(-u * 22)));
+    const trunkAt = (u: number): Point => trunk[clamp(Math.round(u * (trunk.length - 1)), 0, trunk.length - 1)];
+    if (o.main) surfaceRoots(trunkR, 5 + Math.floor(rng() * 3), 1);
+    stroke(trunk, radiusAt, { vertical: true, rough: 0.3, shari: limb.shari && o.main ? { from: rand(0.06, 0.16), to: rand(0.45, 0.6), side: -leanDir } : undefined });
+
+    const crownR = tH * limb.reach;
+    const cone = limb.cone ?? 0.74;
+    let side = rng() < 0.5 ? -1 : 1;
+    const padMul = o.padMul ?? 1;
+    for (let i = 0; i < limb.branches; i++) {
+      const f = limb.branches === 1 ? 0.5 : i / (limb.branches - 1);
+      const t = lerp(limb.t0, limb.t1, f) + rand(-0.02, 0.02);
+      const [tx, ty] = trunkAt(t);
+      side = limb.oneSide ? leanDir : -side;
+      // a conical outline: low branches reach far, high ones are short
+      let L = crownR * (1 - cone * smooth((t - 0.2) / 0.8)) * rand(0.88, 1.12);
+      if (form === "shakan") L *= side === leanDir ? 1.22 : 0.72; // the long limbs hang on the downhill side
+      if (form === "bunjin") L *= 0.8 + 0.4 * rng();
+      const [e0, e1] = limb.elev ?? [-0.12, 0.34];
+      const phi = lerp(e0, e1, t) + rand(-0.06, 0.06); // elevation of the tip
+      const r0 = Math.max(1, radiusAt(t) * 0.6);
+      const p0: Point = [tx + side * radiusAt(t) * 0.5, ty];
+      const p1: Point = [p0[0] + side * L * Math.cos(phi), p0[1] - L * Math.sin(phi) + L * limb.droop * (1 - t)];
+      const q: Point = [lerp(p0[0], p1[0], 0.5), Math.min(p0[1], p1[1]) - L * 0.12];
+      const path = quad(p0, q, p1, 28);
+      stroke(path, (u) => lerp(r0, Math.max(0.7, r0 * 0.3), u), { vertical: false });
+
+      // pads: one at the tip, a smaller one partway along (tied on by a twig), and optionally one in close
+      const rx = clamp(L * 0.58 * limb.pad * padMul, tH * 0.05, tH * 0.2 * (limb.fill ? 1.15 : 1));
+      pads.push({ x: p1[0], y: p1[1] - rx * 0.12, rx, ry: rx * rand(0.38, 0.46) });
+      if (L > tH * 0.13) {
+        const m = path[Math.round(path.length * 0.55)];
+        const mp: Pad = { x: m[0], y: m[1] - rx * 0.3, rx: rx * 0.72, ry: rx * 0.3 };
+        pads.push(mp);
+        stroke([path[Math.round(path.length * 0.4)], [mp.x, mp.y + mp.ry * 0.6]], () => 0.8, { vertical: true });
+      }
+      if (limb.fill && L > tH * 0.1) {
+        const m = path[Math.round(path.length * 0.28)];
+        pads.push({ x: m[0], y: m[1] - rx * 0.22, rx: rx * 0.62, ry: rx * 0.3 });
+      }
+    }
+    // the top of the tree
+    const top = trunk[trunk.length - 1];
+    const apexR = Math.max(tH * 0.11 * limb.apex, 5);
+    const lean = form === "shakan" || form === "fukinagashi" ? leanDir * apexR * 0.15 : 0;
+    pads.push({ x: top[0] + lean, y: top[1] - apexR * 0.18, rx: apexR * (limb.pointed ? 0.72 : 1), ry: apexR * (limb.pointed ? 0.7 : 0.52) });
+    return { trunk, trunkAt, radiusAt };
+  };
+
+  // The control points of a trunk, mirrored to the side the tree leans.
+  const ctrlOf = (path: [number, number][], tH: number, from: Point = base, mirror = dir): Point[] =>
+    path.map(([dx, up]) => [from[0] + mirror * dx * tH + (dx === 0 && up === 0 ? 0 : rand(-0.004, 0.004) * tH), from[1] - up * tH * 0.88]);
+
+  // A tree that pours over a pot: pads hang along the fall.
+  const cascadePads = (trunkAt: (u: number) => Point, from: number, to: number, count: number, size: number, tH: number): void => {
+    for (let i = 0; i < count; i++) {
+      const t = lerp(from, to, count === 1 ? 0 : i / (count - 1));
+      const [tx, ty] = trunkAt(t);
+      const out = i % 2 ? -dir : dir; // alternate sides of the falling trunk
+      const rx = Math.max(tH * 0.05, tH * size * (1 - 0.55 * (i / Math.max(count - 1, 1))));
+      const cx = tx + out * rx * 0.75;
+      stroke([[tx, ty], [cx, ty - rx * 0.15]], () => 0.85, { vertical: false });
+      pads.push({ x: cx, y: ty - rx * 0.2, rx, ry: rx * 0.42 });
+    }
+  };
+
+  const limb = style.limb;
+
+  if (limb && form !== "sokan") {
+    grow({ ctrl: ctrlOf(limb.path, treeH), limb, treeH, trunkR: Math.max(1.6, treeH * limb.trunk), leanDir: dir, main: true });
+  } else if (form === "sokan" && limb) {
+    // two trunks from one root: the second is shorter and leans the other way
+    const tr = Math.max(1.6, treeH * limb.trunk);
+    grow({ ctrl: ctrlOf(limb.path, treeH, [base[0] - dir * potW * 0.14, base[1]]), limb, treeH, trunkR: tr, leanDir: dir, main: true });
+    const second: Limb = {
+      path: [[0, 0], [-0.06, 0.2], [-0.15, 0.42], [-0.2, 0.68], [-0.19, 0.92]],
+      branches: 5, t0: 0.38, t1: 0.86, reach: 0.26, trunk: 0.034, taper: 0.78, pad: 0.95, apex: 1, droop: 0.1, shari: false, fill: 1,
+    };
+    grow({ ctrl: ctrlOf(second.path, treeH * 0.86, [base[0] + dir * potW * 0.14, base[1]], dir), limb: second, treeH: treeH * 0.86, trunkR: tr * 0.85, leanDir: -dir, main: false });
+  } else if (form === "hokidachi") {
+    // broom: a straight trunk that forks at about half height into branches radiating like a fan
+    const trunkR = Math.max(2, treeH * 0.05);
+    const ctrl = ctrlOf([[0, 0], [0.008, 0.2], [-0.006, 0.4], [0.004, 0.52]], treeH);
+    const trunk = spline(ctrl, 60);
+    const radiusAt = (u: number): number => Math.max(1.4, trunkR * (1 - 0.35 * Math.pow(u, 0.7)) * (1 + 0.5 * Math.exp(-u * 20)));
+    surfaceRoots(trunkR, 6, 1);
+    stroke(trunk, radiusAt, { vertical: true, rough: 0.5 });
+    const fork = trunk[trunk.length - 1];
+    const crownRx = treeH * 0.4;
+    const crownRy = treeH * 0.3;
+    const crownCy = fork[1] - crownRy * 0.75;
+    crown = { x: fork[0], y: crownCy, rx: crownRx, ry: crownRy };
+    lowerFirst = true;
+    const n = 9;
+    for (let i = 0; i < n; i++) {
+      const a = ((i / (n - 1)) * 2 - 1) * 1.25 + rand(-0.06, 0.06); // radians from vertical
+      const start = trunk[Math.round((trunk.length - 1) * lerp(0.7, 1, Math.abs(Math.sin(i * 2.3)) * 0.9))];
+      const reach = rand(0.78, 0.98);
+      const tip: Point = [fork[0] + Math.sin(a) * crownRx * reach, crownCy - Math.cos(a) * crownRy * reach + crownRy * 0.12];
+      // each limb leaves the trunk almost level, then curves up toward the rim of the crown
+      const mid: Point = [lerp(start[0], tip[0], 0.7) + Math.sign(a) * rand(0, 5), lerp(start[1], tip[1], 0.25) - 2];
+      const r0 = Math.max(1, radiusAt(1) * 0.55);
+      stroke(quad(start, mid, tip, 24), (u) => lerp(r0, 0.7, u), { vertical: false });
+      const rx = crownRx * rand(0.3, 0.38);
+      pads.push({ x: tip[0], y: tip[1], rx, ry: rx * 0.58 });
+    }
+    // fill the dome: pads in three rows, packed so the crown reads as one round mass
+    for (let row = 0; row < 3; row++) {
+      const span = crownRx * (1 - row * 0.28);
+      const cnt = 3 + (2 - row);
+      for (let k = 0; k < cnt; k++) {
+        const u = (k / (cnt - 1)) * 2 - 1;
+        const rx = crownRx * rand(0.28, 0.36);
+        pads.push({
+          x: fork[0] + u * span * 0.8 + rand(-3, 3),
+          y: crownCy - crownRy * (0.05 + row * 0.38) * (1 - 0.25 * u * u) + rand(-2, 2),
+          rx,
+          ry: rx * 0.6,
+        });
+      }
+    }
+  } else if (form === "ishitsuki") {
+    // on a stone: a short, thick, twisting trunk and a very broad dome of foliage
+    const trunkR = Math.max(3, treeH * 0.05);
+    const path: [number, number][] = [[0, 0], [-0.03, 0.08], [0.05, 0.17], [0.0, 0.27], [0.09, 0.36], [0.13, 0.47]];
+    const ctrl = ctrlOf(path, treeH);
+    const trunk = spline(ctrl, 70);
+    const radiusAt = (u: number): number => Math.max(1.6, trunkR * (1 - 0.55 * Math.pow(u, 0.7)) * (1 + 0.45 * Math.exp(-u * 24)));
+    // roots that grip the stone: out across the top and down its sides
+    const rootN = 8;
+    for (let i = 0; i < rootN; i++) {
+      const side = i % 2 ? 1 : -1;
+      const reach = (potW / 2) * rand(0.55, 0.98) * (i < 2 ? 1 : 0.7);
+      const sx = base[0] + side * trunkR * rand(0.1, 0.5);
+      const pts: Point[] = [
+        [sx, base[1] - trunkR * 0.7],
+        [sx + side * reach * 0.35, base[1] - trunkR * 0.15 + rand(-1, 1)],
+        [sx + side * reach * 0.75, y0 + rand(0, 1.5)],
+        [sx + side * reach, y0 + potH * rand(0.25, 0.7)],
+      ];
+      stroke(spline(pts, 16), (u) => trunkR * lerp(0.62, 0.12, u), { vertical: false, rough: 0.6 });
+    }
+    stroke(trunk, radiusAt, { vertical: true, rough: 1, clip: y0 + Math.max(2, Math.round(potH * 0.25)), shari: { from: 0.05, to: 0.6, side: -dir } });
+    const top = trunk[trunk.length - 1];
+    const crownRx = treeH * 0.52;
+    const crownRy = treeH * 0.25;
+    const cxC = lerp(top[0], cxp, 0.25);
+    const cyC = top[1] - crownRy * 0.25;
+    crown = { x: cxC, y: cyC, rx: crownRx, ry: crownRy };
+    lowerFirst = true;
+    // a couple of heavy limbs into the underside of the crown
+    for (const s of [-1, 1]) {
+      const start = trunk[Math.round((trunk.length - 1) * 0.8)];
+      const tip: Point = [cxC + s * crownRx * 0.55, cyC + crownRy * 0.35];
+      stroke(quad(start, [lerp(start[0], tip[0], 0.5), start[1] - 8], tip, 22), (u) => lerp(trunkR * 0.42, 0.9, u), { vertical: false, rough: 0.5 });
+    }
+    // pads packed into a broad dome, in loose rows with the edges drooping a little
+    const rows = 4;
+    for (let row = 0; row < rows; row++) {
+      const span = crownRx * (1 - row * 0.16);
+      const rx0 = crownRx * (0.2 - row * 0.012);
+      const cnt = Math.max(3, Math.round((span * 2) / (rx0 * 1.05)));
+      for (let k = 0; k < cnt; k++) {
+        const u = (k / (cnt - 1)) * 2 - 1;
+        const rx = rx0 * rand(0.85, 1.4);
+        const droop = Math.pow(Math.abs(u), 2.4) * crownRy * 0.55;
+        pads.push({
+          x: cxC + u * span * 0.94 + rand(-0.25, 0.25) * rx,
+          y: cyC + crownRy * (0.5 - row * 0.32) + droop + rand(-0.15, 0.15) * rx,
+          rx,
+          ry: rx * rand(0.62, 0.78),
+        });
+      }
+    }
+  } else if (form === "hankengai" || form === "kengai") {
+    const isK = form === "kengai";
+    const trunkR = Math.max(2, treeH * (isK ? 0.04 : 0.045));
+    const out = ((cxp + dir * potW * (isK ? 0.78 : 0.62)) - bx) * dir / treeH; // how far out the trunk goes, in tree heights
+    const path: [number, number][] = isK
+      ? [[0, 0], [0.03, 0.12], [0.1, 0.27], [out * 0.5, 0.35], [out * 0.88, 0.25], [out, 0.04], [out + 0.02, -0.16], [out - 0.01, -0.36]]
+      : [[0, 0], [0.03, 0.13], [0.1, 0.27], [0.2, 0.33], [0.3, 0.3], [0.38, 0.19], [0.42, 0.05], [0.43, -0.1]];
+    const trunk = spline(ctrlOf(path, treeH), 90);
+    const radiusAt = (u: number): number => Math.max(1.3, trunkR * (1 - 0.5 * Math.pow(u, 0.7)) * (1 + 0.6 * Math.exp(-u * 18)));
+    const trunkAt = (u: number): Point => trunk[clamp(Math.round(u * (trunk.length - 1)), 0, trunk.length - 1)];
+    surfaceRoots(trunkR, 5, 1);
+    stroke(trunk, radiusAt, { vertical: true, rough: 0.5, shari: { from: 0.08, to: 0.4, side: -dir } });
+    // the crest: a broad mass where the trunk turns over
+    const crest = trunkAt(0.4);
+    const big = treeH * (isK ? 0.17 : 0.2);
+    pads.push({ x: crest[0] - dir * big * 0.1, y: crest[1] - big * 0.55, rx: big * 1.15, ry: big * 0.5 });
+    pads.push({ x: crest[0] + dir * big * 0.7, y: crest[1] - big * 0.25, rx: big * 0.9, ry: big * 0.4 });
+    pads.push({ x: crest[0] - dir * big * 0.9, y: crest[1] + big * 0.05, rx: big * 0.75, ry: big * 0.36 });
+    if (isK) cascadePads(trunkAt, 0.58, 0.97, 6, 0.17, treeH);
+    else cascadePads(trunkAt, 0.64, 0.97, 3, 0.2, treeH);
   }
 
-  // Upper pads first, so a lower one sits in front of the one above it.
-  pads.sort((a, b) => a.y - b.y);
+  // ---- foliage --------------------------------------------------------------
+  // Upper pads first (so a lower one sits in front of the one above it); a dome goes the other way.
+  pads.sort((a, b) => (lowerFirst ? b.y - a.y : a.y - b.y));
   const hi = ramp.length - 1;
   const leaf = (c: number): Rgb => ramp[clamp(Math.round(c), 0, hi)];
   const edgeSeed = seed + 31;
@@ -456,7 +744,8 @@ export function growBonsai(env: BonsaiEnv, form: BonsaiForm): BonsaiResult {
         if (!inMask(x, y)) continue;
         const u = (x + 0.5 - cx) / rx;
         const v = (y + 0.5 - cy) / ry;
-        const lit = -(u * 0.35 + v * 0.55); // 1 at the upper left, -1 at the lower right
+        let lit = -(u * 0.35 + v * 0.55); // 1 at the upper left, -1 at the lower right
+        if (crown) lit = lit * 0.55 - (((x + 0.5 - crown.x) / crown.rx) * 0.3 + ((y + 0.5 - crown.y) / crown.ry) * 0.75) * 0.6; // light across the whole dome
         let idx = 3.2 - lit * 2.3 + (noise2(x * 0.38 + edgeSeed, y * 0.5) - 0.5) * 2.2 + (noise2(x * 1.1 + edgeSeed, y * 1.1) - 0.5) * 0.7;
         const open = !inMask(x, y - 1);
         const under = !inMask(x, y + 1) || !inMask(x, y + 2);
